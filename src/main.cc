@@ -95,16 +95,16 @@ int main(void)
   Context ctx;
   FrameBuffer fb{width, height};
   std::vector<Vertex> vertices{
-    {{-.5f, -.5f, .5f, 1.f}, {1.f, .0f, .0f}},
-    {{.0f, .5f, .5f, 1.f}, {0.f, 1.f, 0.f}},
-    {{.5f, -.5f, .5f, 1.f}, {0.f, 0.f, 1.f}}
+    {{-.5f, -.2f, .5f, 1.f}, {1.f, .0f, .0f}},
+    {{.5f, -.8f, .5f, 1.f}, {0.f, 1.f, 0.f}},
+    {{.0f, .5f, .5f, 1.f}, {0.f, 0.f, 1.f}},
   };
   fb.clear();
   ctx.setVertices(vertices);
   ctx.setFrameBuffer(fb);
   ctx.setVertexShader(vsPassThrough);
   ctx.setFragmentShader(fsPassThrough);
-  ctx.setWireframeMode(true);
+  // ctx.setWireframeMode(true);
 
   GLuint tex;
   glCreateTextures(GL_TEXTURE_2D, 1, &tex);
@@ -122,8 +122,8 @@ int main(void)
   glLinkProgram(program);
   glUseProgram(program);
 
-  while (!glfwWindowShouldClose(window)) {
     ctx.draw();
+  while (!glfwWindowShouldClose(window)) {
 
     glClear(GL_COLOR_BUFFER_BIT);
     glTextureSubImage2D(tex, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT,
