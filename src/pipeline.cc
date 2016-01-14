@@ -129,16 +129,15 @@ Vec2 getSlopes(const Vertex &v0, const Vertex &v1, const Vertex &v2) {
 }
 
 bool getEndpointsX(const Vec2 &slope, Vec2 &x, Vec2 &end,
-                   Vec2 &lerp_t, Vec2 &lerp_step) {
+                   float &lerp_x, float &lerp_step_x) {
     auto pix_left = getNearestPixelCenter(x.x);
     auto pix_right = getNearestPixelCenter(x.y);
 
     end.x = x.x <= pix_left ? pix_left : pix_left + 1;
     end.y = x.y > pix_right ? pix_right : pix_right - 1;
 
-    lerp_t.x = getLerpT(x.x, x.y, end.x);
-    lerp_t.y += lerp_step.y;
-    lerp_step.x = getLerpT(x.x, x.y, end.x + 1) - lerp_t.x;
+    lerp_x = getLerpT(x.x, x.y, end.x);
+    lerp_step_x = getLerpT(x.x, x.y, end.x + 1) - lerp_x;
 
     x.x += slope.x;
     x.y += slope.y;
@@ -154,11 +153,11 @@ bool getEndpointsY(const Vertex &vert, const Vertex &base,
 
   if (bottom) {
     end.x = vert.position.y > pix_vert ? pix_vert : pix_vert - 1;
-    end.y = base.position.y <= pix_base ? pix_base : pix_base - 1;
+    end.y = base.position.y <= pix_base ? pix_base : pix_base + 1;
   }
   else {
     end.x = base.position.y > pix_base ? pix_base : pix_base - 1;
-    end.y = vert.position.y < pix_vert ? pix_vert : pix_vert - 1;
+    end.y = vert.position.y < pix_vert ? pix_vert : pix_vert + 1;
   }
   lerp_y = getLerpT(vert.position.y, base.position.y, end.x);
   lerp_step_y = getLerpT(vert.position.y, base.position.y, end.x - 1) - lerp_y;
@@ -194,7 +193,7 @@ void rasterizeTopOrBottomTriangle(const Vertex &v, const Vertex &b1,
   auto x = getInitialCoordX(v, left_base, right_base, slope, end_y, bottom);
 
   for (auto y = end_y.x; y >= end_y.y; --y) {
-    if (!getEndpointsX(slope, x, end_x, lerp_t, lerp_step))
+    if (!getEndpointsX(slope, x, end_x, lerp_t.x, lerp_step.x))
       continue;
 
     auto left = lerp(v, left_base, lerp_t.y);
@@ -208,6 +207,7 @@ void rasterizeTopOrBottomTriangle(const Vertex &v, const Vertex &b1,
       //fragments.emplace_back(lerp(left, right, lerp_t.x));
       lerp_t.x += lerp_step.x;
     }
+    lerp_t.y += lerp_step.y;
   }
 }
 
@@ -217,7 +217,7 @@ void rasterizeTriangle(std::vector<Fragment> &fragments, const Triangle &tri) {
       [](Vertex &v1, Vertex &v2) { return v1.position.y > v2.position.y; });
 
   if (sorted[0].position.y == sorted[1].position.y)
-    rasterizeTopOrBottomTriangle(sorted[0], sorted[1], sorted[2], fragments);
+    rasterizeTopOrBottomTriangle(sorted[2], sorted[0], sorted[1], fragments);
   else if (sorted[1].position.y == sorted[2].position.y)
     rasterizeTopOrBottomTriangle(sorted[0], sorted[1], sorted[2], fragments);
   else {
