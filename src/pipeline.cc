@@ -6,22 +6,6 @@
 
 namespace {
 
-struct VertexShaderInvocation {
-  VertexShaderInvocation(const Vertex &in, Vertex &out) : in{&in}, out{&out} {}
-
-  const Vertex *in;
-  Vertex *out;
-  VertexShader shader;
-};
-
-struct FragmentShaderInvocation {
-  FragmentShaderInvocation(const Fragment &in, Color &out) : in{&in}, out{&out} {}
-
-  const Fragment *in;
-  Color *out;
-  FragmentShader shader;
-};
-
 // Bresenham's line algorithm.
 void rasterizeLine(std::vector<Fragment> &frags, const Vertex &v0,
                    const Vertex &v1) {
@@ -251,7 +235,21 @@ std::vector<Triangle> assembleTriangles(const std::vector<Vertex> &vertices) {
 }
 
 std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
-  return triangles;
+  std::vector<Triangle> out;
+  auto outside_clip_vol = [] (auto &v) {
+    auto w = v.position.w;
+    if (v.position.x > w || v.position.x < -w ||
+        v.position.y > w || v.position.y < -w ||
+        v.position.z > w || v.position.z < -w)
+      return true;
+    return false;
+  };
+  for (auto &tri : triangles) {
+    if (std::any_of(std::cbegin(tri.v), std::cend(tri.v), outside_clip_vol))
+      continue;
+    out.emplace_back(tri);
+  }
+  return out;
 }
 
 std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
