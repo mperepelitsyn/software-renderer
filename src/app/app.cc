@@ -62,7 +62,8 @@ GLuint linkProgram(const GLchar *vs_source, const GLchar *fs_source) {
 } // namespace
 
 App::App(unsigned w, unsigned h, const std::string &name)
-  : fb_{w, h}, width_{w}, height_{h}, last_time_{}, name_{name} {
+  : fb_{w, h}, width_{w}, height_{h}, name_{name},
+    fps_counter_{name_, 0.25} {
   glfwSetErrorCallback(errorCallback);
 
   if (!glfwInit())
@@ -87,6 +88,7 @@ App::App(unsigned w, unsigned h, const std::string &name)
   glUseProgram(program_);
 
   ctx_.setFrameBuffer(fb_);
+  fps_counter_.setWindow(window_);
 }
 
 App::~App() {
@@ -103,6 +105,7 @@ void App::render() {
     auto delta = time - last_time_;
     last_time_ = time;
 
+    fps_counter_.tick(delta);
     renderLoop(time, delta);
 
     glClear(GL_COLOR_BUFFER_BIT);

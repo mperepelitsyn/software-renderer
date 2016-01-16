@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "app/error.h"
+#include "app/fps_counter.h"
 #include "renderer/context.h"
 
 #define DEFINE_AND_CALL_APP(app_type, w, h, title) \
@@ -39,10 +40,11 @@ class App {
 
  private:
   GLFWwindow *window_;
-  double last_time_;
+  double last_time_{};
   GLuint program_;
   GLuint texture_;
   std::string name_;
+  FPSCounter fps_counter_;
 };
 
 } // namespace app
