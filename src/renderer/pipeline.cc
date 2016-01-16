@@ -228,11 +228,12 @@ std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
 }
 
 std::vector<Triangle> assembleTriangles(const std::vector<Vertex> &vertices) {
-  std::vector<Triangle> triangles{vertices.size() / 3};
-  for (auto i = 0u; i < vertices.size(); i += 3) {
-    triangles[i].v[0] = vertices[i];
-    triangles[i].v[1] = vertices[i + 1];
-    triangles[i].v[2] = vertices[i + 2];
+  auto tri_count = vertices.size() / 3;
+  std::vector<Triangle> triangles{tri_count};
+  for (auto i = 0u; i < tri_count; ++i) {
+    triangles[i].v[0] = vertices[i * 3];
+    triangles[i].v[1] = vertices[i * 3 + 1];
+    triangles[i].v[2] = vertices[i * 3 + 2];
   }
   return triangles;
 }
