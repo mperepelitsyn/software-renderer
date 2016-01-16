@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+namespace renderer {
+
 struct Vec2 {
   Vec2() {}
   Vec2(float a, float b) : x{a}, y{b} {}
@@ -87,3 +89,5 @@ inline Vec3 normalize(const Vec3 &v) {
   auto len = length(v);
   return len == 0.f ?  Vec3{0.f, 0.f, 0.f} : v / len;
 }
+
+} // namespace renderer

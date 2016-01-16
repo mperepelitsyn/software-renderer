@@ -1,6 +1,8 @@
 #include <cmath>
 
-#include "matrix.h"
+#include "renderer/matrix.h"
+
+namespace renderer {
 
 Mat4 Mat4::operator*(const Mat4 &m) const {
   Mat4 r{0.f};
@@ -78,3 +80,5 @@ Mat4 createViewMatrix(const Vec3 &pos, const Vec3 &target, const Vec3 &up) {
     {0.f, 0.f, 0.f, 1.f},
   };
 }
+
+} // namespace renderer

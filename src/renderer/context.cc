@@ -1,8 +1,9 @@
-#include "context.h"
-#include "pipeline.h"
+#include "renderer/context.h"
+
+namespace renderer {
 
 void Context::draw() {
-  auto transformed = invokeVertexShader(*vertices_, uniform_, vs_);
+  auto transformed = invokeVertexShader(vertices_, uniform_, vs_);
   auto triangles = assembleTriangles(transformed);
   triangles = clipTriangles(triangles);
   triangles = cullBackFacing(triangles);
@@ -10,3 +11,5 @@ void Context::draw() {
   auto fragments = rasterize(triangles, wireframe_);
   invokeFragmentShader(fragments, *fb_, uniform_, fs_);
 }
+
+} // namespace renderer

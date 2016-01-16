@@ -2,7 +2,9 @@
 
 #include <vector>
 
-#include "vector.h"
+#include "renderer/vector.h"
+
+namespace renderer {
 
 class FrameBuffer {
  public:
@@ -21,3 +23,5 @@ class FrameBuffer {
   unsigned width_;
   unsigned height_;
 };
+
+} // namespace renderer

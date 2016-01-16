@@ -2,7 +2,11 @@
 #include <sstream>
 #include <tuple>
 
-#include "obj_parser.h"
+#include "app/obj_parser.h"
+
+using namespace renderer;
+
+namespace app {
 
 namespace {
 
@@ -68,3 +72,4 @@ std::vector<Vertex> parseObj(const std::string &path) {
   return out;
 }
 
+} // namespace app

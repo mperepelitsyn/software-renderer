@@ -2,7 +2,9 @@
 #include <cstdlib>
 #include <functional>
 
-#include "pipeline.h"
+#include "renderer/pipeline.h"
+
+namespace renderer {
 
 namespace {
 
@@ -216,7 +218,7 @@ void rasterizeTriangle(std::vector<Fragment> &fragments, const Triangle &tri) {
 } // namespace
 
 std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
-                                       const Uniform *uniform,
+                                       const Uniform &uniform,
                                        VertexShader shader) {
   std::vector<Vertex> transformed{vertices.size()};
   for (auto i = 0u; i < vertices.size(); ++i) {
@@ -292,10 +294,11 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
 
 void invokeFragmentShader(const std::vector<Fragment> &fragments,
                           FrameBuffer &fb,
-                          const Uniform *uniform,
+                          const Uniform &uniform,
                           FragmentShader shader) {
   for (auto &frag : fragments) {
     shader(frag, uniform, fb.getColor(frag.frag_coord.x, frag.frag_coord.y));
   }
 }
 
+} // namespace renderer

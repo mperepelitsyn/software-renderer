@@ -2,9 +2,11 @@
 
 #include <vector>
 
-#include "framebuffer.h"
-#include "vector.h"
-#include "matrix.h"
+#include "renderer/framebuffer.h"
+#include "renderer/vector.h"
+#include "renderer/matrix.h"
+
+namespace renderer {
 
 struct Vertex {
   Vertex() {}
@@ -39,15 +41,15 @@ struct Uniform {
   Mat4 mvp;
 };
 
-using VertexShader = void(*)(const Vertex &in, const Uniform *u, Vertex &out);
-using FragmentShader = void(*)(const Fragment &in, const Uniform *u, Vec4 &out);
+using VertexShader = void(*)(const Vertex &in, const Uniform &u, Vertex &out);
+using FragmentShader = void(*)(const Fragment &in, const Uniform &u, Vec4 &out);
 
 struct Triangle {
   Vertex v[3];
 };
 
 std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
-                                       const Uniform *uniform,
+                                       const Uniform &uniform,
                                        VertexShader shader);
 std::vector<Triangle> assembleTriangles(const std::vector<Vertex> &vertices);
 std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
@@ -58,6 +60,7 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
                                 bool wireframe);
 void invokeFragmentShader(const std::vector<Fragment> &frags,
                           FrameBuffer &fb,
-                          const Uniform *uniform,
+                          const Uniform &uniform,
                           FragmentShader shader);
 
+} // namespace renderer
