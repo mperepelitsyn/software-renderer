@@ -216,10 +216,11 @@ void rasterizeTriangle(std::vector<Fragment> &fragments, const Triangle &tri) {
 } // namespace
 
 std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
+                                       const Uniform *uniform,
                                        VertexShader shader) {
   std::vector<Vertex> transformed{vertices.size()};
   for (auto i = 0u; i < vertices.size(); ++i) {
-    shader(vertices[i], transformed[i]);
+    shader(vertices[i], uniform, transformed[i]);
   }
   return transformed;
 }
@@ -260,6 +261,13 @@ void convertToScreenSpace(std::vector<Triangle> &triangles,
                           unsigned width, unsigned height) {
   for (auto &tri : triangles) {
     for (auto &vert : tri.v) {
+      // To NDC.
+      vert.position.x /= vert.position.w;
+      vert.position.y /= vert.position.w;
+      vert.position.z /= vert.position.w;
+      vert.position.w = 1.f;
+
+      // To screen space.
       vert.position.x = vert.position.x * (width - 1) / 2 + (width - 1) / 2;
       vert.position.y = vert.position.y * (height - 1) / 2 + (height - 1) / 2;
     }
@@ -284,9 +292,10 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
 
 void invokeFragmentShader(const std::vector<Fragment> &fragments,
                           FrameBuffer &fb,
+                          const Uniform *uniform,
                           FragmentShader shader) {
   for (auto &frag : fragments) {
-    shader(frag, fb.getColor(frag.frag_coord.x, frag.frag_coord.y));
+    shader(frag, uniform, fb.getColor(frag.frag_coord.x, frag.frag_coord.y));
   }
 }
 

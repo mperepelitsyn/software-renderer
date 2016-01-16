@@ -4,6 +4,7 @@
 
 #include "framebuffer.h"
 #include "vector.h"
+#include "matrix.h"
 
 struct Vertex {
   Vertex() {}
@@ -34,23 +35,19 @@ struct Fragment {
   Vec2 tex_coord;
 };
 
-using Color = Vec4;
-using VertexShader = void(*)(const Vertex &in, Vertex &out);
-using FragmentShader = void(*)(const Fragment &in, Color &out);
+struct Uniform {
+  Mat4 mvp;
+};
 
-inline void vsPassThrough(const Vertex &in, Vertex &out) {
-  out = in;
-}
-
-inline void fsPassThrough(const Fragment &in, Color &out) {
-  out = Vec4(in.color.r, in.color.g, in.color.b, 1.f);
-}
+using VertexShader = void(*)(const Vertex &in, const Uniform *u, Vertex &out);
+using FragmentShader = void(*)(const Fragment &in, const Uniform *u, Vec4 &out);
 
 struct Triangle {
   Vertex v[3];
 };
 
 std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
+                                       const Uniform *uniform,
                                        VertexShader shader);
 std::vector<Triangle> assembleTriangles(const std::vector<Vertex> &vertices);
 std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
@@ -61,5 +58,6 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
                                 bool wireframe);
 void invokeFragmentShader(const std::vector<Fragment> &frags,
                           FrameBuffer &fb,
+                          const Uniform *uniform,
                           FragmentShader shader);
 

@@ -7,7 +7,7 @@
 #include "context.h"
 
 constexpr unsigned width = 640;
-constexpr unsigned height = 480;
+constexpr unsigned height = 640;
 
 namespace {
 
@@ -15,7 +15,8 @@ void errorCallback(int error, const char *desc) {
   std::cerr << "GLFW error: (" << error << ") " << desc;
 }
 
-void keyCallback(GLFWwindow* window, int key, int sc, int action, int mods) {
+void keyCallback(GLFWwindow* window, int key, int /*sc*/, int action,
+                 int /*mods*/) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GL_TRUE);
 }
@@ -75,6 +76,18 @@ void *genTexture() {
   return texture;
 }
 
+void vertex_shader(const Vertex &in, const Uniform *u, Vertex &out) {
+  out.position = u->mvp * in.position;
+  auto n = u->mvp * Vec4{in.normal, 0.f};
+  out.normal = {n.x, n.y, n.z};
+  out.color = in.color;
+  out.tex_coord = in.tex_coord;
+}
+
+void fragment_shader(const Fragment &in, const Uniform *, Vec4 &out) {
+  out = Vec4(in.color.r, in.color.g, in.color.b, 1.f);
+}
+
 } // namespace
 
 int main(void)
@@ -92,20 +105,6 @@ int main(void)
   glewInit();
   glfwSetKeyCallback(window, keyCallback);
 
-  Context ctx;
-  FrameBuffer fb{width, height};
-  std::vector<Vertex> vertices{
-    {{-.5f, -.2f, .5f, 1.f}, {1.f, .0f, .0f}},
-    {{.5f, -.8f, .5f, 1.f}, {0.f, 1.f, 0.f}},
-    {{.0f, .5f, .5f, 1.f}, {0.f, 0.f, 1.f}},
-  };
-  fb.clear();
-  ctx.setVertices(vertices);
-  ctx.setFrameBuffer(fb);
-  ctx.setVertexShader(vsPassThrough);
-  ctx.setFragmentShader(fsPassThrough);
-  // ctx.setWireframeMode(true);
-
   GLuint tex;
   glCreateTextures(GL_TEXTURE_2D, 1, &tex);
   glTextureStorage2D(tex, 1, GL_RGBA32F, width, height);
@@ -122,8 +121,34 @@ int main(void)
   glLinkProgram(program);
   glUseProgram(program);
 
-    ctx.draw();
+  Context ctx;
+  FrameBuffer fb{width, height};
+  std::vector<Vertex> vertices{
+    {{-.5f, .5f, .0f, 1.f}, {1.f, .0f, .0f}},
+    {{.0f, -.5f, .0f, 1.f}, {0.f, 0.f, 1.f}},
+    {{.5f, .5f, .0f, 1.f}, {0.f, 1.f, 0.f}},
+  };
+  ctx.setVertices(vertices);
+  ctx.setFrameBuffer(fb);
+  ctx.setVertexShader(vertex_shader);
+  ctx.setFragmentShader(fragment_shader);
+
+  auto view = createViewMatrix({0.f, 0.f, 2.f}, {0.f, 0.f, 0.f},
+                               {0.f, 1.f, 0.f});
+  auto proj = createPerspProjMatrix(70.0_deg,
+      static_cast<float>(width) / height, 0.01f, 100.f);
+  auto proj_view = proj * view;
+
   while (!glfwWindowShouldClose(window)) {
+    float time = glfwGetTime();
+    fb.clear();
+
+    auto model = rotateZ(time) * translate({0.3f, 0.f, 0.f}) *
+                 rotateZ(-time) * rotateY(time);
+    Uniform u{proj_view * model};
+    ctx.SetUniform(u);
+
+    ctx.draw();
 
     glClear(GL_COLOR_BUFFER_BIT);
     glTextureSubImage2D(tex, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT,
