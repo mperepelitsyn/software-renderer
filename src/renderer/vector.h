@@ -10,6 +10,10 @@ struct Vec2 {
 
   float &operator[](unsigned i) { return data[i]; }
   const float &operator[](unsigned i) const { return data[i]; }
+  Vec2 operator+(const Vec2 &v) const { return {x + v.x, y + v.y}; }
+  Vec2 operator-(const Vec2 &v) const { return {x - v.x, y - v.y}; }
+  Vec2 operator/(float d) const { return {x / d, y / d}; }
+  Vec2 operator*(float m) const { return {x * m, y * m}; }
 
   union {
     struct {
@@ -30,8 +34,10 @@ struct Vec3 {
 
   float &operator[](unsigned i) { return data[i]; }
   const float &operator[](unsigned i) const { return data[i]; }
+  Vec3 operator+(const Vec3 &v) const { return {x + v.x, y + v.y, z + v.z}; }
   Vec3 operator-(const Vec3 &v) const { return {x - v.x, y - v.y, z - v.z}; }
   Vec3 operator/(float d) const { return {x / d, y / d, z / d}; }
+  Vec3 operator*(float m) const { return {x * m, y * m, z * m}; }
 
   union {
     struct {
@@ -55,6 +61,12 @@ struct Vec4 {
 
   float &operator[](unsigned i) { return data[i]; }
   const float &operator[](unsigned i) const { return data[i]; }
+  Vec4 operator+(const Vec4 &v) const
+    { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
+  Vec4 operator-(const Vec4 &v) const
+    { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
+  Vec4 operator/(float d) const { return {x / d, y / d, z / d, w / d}; }
+  Vec4 operator*(float m) const { return {x * m, y * m, z * m, w * m}; }
 
   union {
     struct {
