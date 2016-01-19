@@ -4,7 +4,8 @@
 
 namespace renderer {
 
-// Column major representation.
+// Basis vectors form columns.
+
 struct Mat4 {
   Mat4() {}
   Mat4(float d)
@@ -28,7 +29,9 @@ struct Mat4 {
   const Vec4 &operator[](unsigned idx) const { return data[idx]; }
 
   Mat4 operator*(const Mat4 &m) const;
-  Vec4 operator*(const Vec4 &v) const;
+  Vec4 operator*(const Vec4 &v) const {
+    return {dot(data[0], v), dot(data[1], v), dot(data[2], v), dot(data[3], v)};
+  }
 
   Vec4 data[4];
 };

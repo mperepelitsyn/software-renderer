@@ -5,7 +5,7 @@
 namespace renderer {
 
 Mat4 Mat4::operator*(const Mat4 &m) const {
-  Mat4 r{0.f};
+  Mat4 r;
   for (auto i = 0u; i < 4; ++i) {
     for (auto j = 0u; j < 4; ++j) {
       r[i][j] = 0;
@@ -15,10 +15,6 @@ Mat4 Mat4::operator*(const Mat4 &m) const {
   }
   return r;
 };
-
-Vec4 Mat4::operator*(const Vec4 &v) const {
-  return {dot(data[0], v), dot(data[1], v), dot(data[2], v), dot(data[3], v)};
-}
 
 Mat4 scale(float xf, float yf, float zf) {
   return {{xf, 0.f, 0.f}, {0.f, yf, 0.f}, {0.f, 0.f, zf}, {0.f, 0.f, 0.f}};

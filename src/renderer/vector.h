@@ -85,6 +85,10 @@ struct Vec4 {
   };
 };
 
+inline float dot(const Vec3 &u, const Vec3 &v) {
+  return u.x * v.x + u.y * v.y + u.z * v.z;
+}
+
 inline float dot(const Vec4 &u, const Vec4 &v) {
   return u.x * v.x + u.y * v.y + u.z * v.z + u.w * v.w;
 }
@@ -95,6 +99,10 @@ inline Vec3 cross(const Vec3 &u, const Vec3 &v) {
 
 inline float length(const Vec3 &v) {
   return std::sqrt(std::pow(v.x, 2) + std::pow(v.y, 2) + std::pow(v.z, 2));
+}
+
+inline Vec3 reflect(const Vec3 &v, const Vec3 &n) {
+  return v - n * dot(n, v) * 2;
 }
 
 inline Vec3 normalize(const Vec3 &v) {
