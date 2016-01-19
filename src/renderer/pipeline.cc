@@ -91,7 +91,6 @@ void rasterizeTriHalfSpace(const Triangle &tri, std::vector<Fragment> &frags) {
   auto y2 = tri.v[2].position.y;
   auto aabb_x = std::minmax({x0, x1, x2});
   auto aabb_y = std::minmax({y0, y1, y2});
-  auto s = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
   auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
   auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
   auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
@@ -116,8 +115,8 @@ void rasterizeTriHalfSpace(const Triangle &tri, std::vector<Fragment> &frags) {
       if ((e0 > 0 || (e0 == 0 && e0_top_left)) &&
           (e1 > 0 || (e1 == 0 && e1_top_left)) &&
           (e2 > 0 || (e2 == 0 && e2_top_left))) {
-        auto w0 = e0 / s;
-        auto w1 = e1 / s;
+        auto w0 = e0 / tri.darea;
+        auto w1 = e1 / tri.darea;
         auto w2 = 1 - w0 - w1;
 
         frags.emplace_back(interpolate(tri, x, y, w0, w1, w2));
@@ -168,7 +167,17 @@ std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
 }
 
 std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
-  return triangles;
+  std::vector<Triangle> out;
+  for (auto &tri : triangles) {
+    auto darea = (tri.v[1].position.x - tri.v[0].position.x) *
+                 (tri.v[2].position.y - tri.v[0].position.y) -
+                 (tri.v[2].position.x - tri.v[0].position.x) *
+                 (tri.v[1].position.y - tri.v[0].position.y);
+    if (darea < 0)
+      continue;
+    out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
+  }
+  return out;
 }
 
 void convertToScreenSpace(std::vector<Triangle> &triangles,

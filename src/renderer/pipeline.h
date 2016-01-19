@@ -51,6 +51,7 @@ using FragmentShader = void(*)(const Fragment &in, const Uniform &u, Vec4 &out);
 
 struct Triangle {
   Vertex v[3];
+  float darea;
 };
 
 std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
