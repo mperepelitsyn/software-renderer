@@ -44,8 +44,8 @@ class TriangleApp : public app::App {
     fb_.clear();
 
     auto model = rotateZ(time) * translate({0.3f, 0.f, 0.f}) *
-                 rotateZ(-time) * rotateY(time);
-    ctx_.setUniform({proj_view_ * model});
+                 rotateZ(-time * 1.2f);
+    ctx_.setUniform({proj_view_ * model, {}});
 
     ctx_.draw();
   }
