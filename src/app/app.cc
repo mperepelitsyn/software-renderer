@@ -110,7 +110,7 @@ void App::render() {
 
     glClear(GL_COLOR_BUFFER_BIT);
     glTextureSubImage2D(texture_, 0, 0, 0, width_, height_, GL_RGBA, GL_FLOAT,
-                        fb_.getRawBuffer()); // genTexture());
+                        fb_.getColorBuffer());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window_);
     glfwPollEvents();

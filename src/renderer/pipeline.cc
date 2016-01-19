@@ -181,6 +181,7 @@ void convertToScreenSpace(std::vector<Triangle> &triangles,
       // To screen space.
       vert.position.x = vert.position.x * (width - 1) / 2 + (width - 1) / 2;
       vert.position.y = vert.position.y * (height - 1) / 2 + (height - 1) / 2;
+      vert.position.z = vert.position.z * .5f + .5f;
     }
   }
 }
@@ -206,7 +207,13 @@ void invokeFragmentShader(const std::vector<Fragment> &fragments,
                           const Uniform &uniform,
                           FragmentShader shader) {
   for (auto &frag : fragments) {
+    auto &depth = fb.getDepth(frag.frag_coord.x, frag.frag_coord.y);
+    // Early z test.
+    if (frag.frag_coord.z >= depth)
+      continue;
+
     shader(frag, uniform, fb.getColor(frag.frag_coord.x, frag.frag_coord.y));
+    depth = frag.frag_coord.z;
   }
 }
 
