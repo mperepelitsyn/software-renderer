@@ -21,6 +21,7 @@ struct Vertex {
   Vec3 color;
   Vec3 normal;
   Vec2 tex_coord;
+  Vec3 pos_view;
 };
 
 struct Fragment {
@@ -28,17 +29,21 @@ struct Fragment {
   Fragment(const Vertex &v)
     : frag_coord{v.position.x, v.position.y, v.position.z},
       color{v.color}, normal{v.normal}, tex_coord{v.tex_coord} {}
-  Fragment(const Vec3 &pos, const Vec3 &color, const Vec3 &norm, const Vec2 &tc)
-    : frag_coord{pos}, color{color}, normal{norm}, tex_coord{tc} {}
+  Fragment(const Vec3 &pos, const Vec3 &color, const Vec3 &norm, const Vec2 &tc,
+           const Vec3 &pos_view)
+    : frag_coord{pos}, color{color}, normal{norm}, tex_coord{tc},
+      pos_view{pos_view} {}
 
   Vec3 frag_coord;
   Vec3 color;
   Vec3 normal;
   Vec2 tex_coord;
+  Vec3 pos_view;
 };
 
 struct Uniform {
   Mat4 mvp;
+  Mat4 mv;
 };
 
 using VertexShader = void(*)(const Vertex &in, const Uniform &u, Vertex &out);

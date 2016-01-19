@@ -75,6 +75,9 @@ Fragment interpolate(const Triangle &tri, float x, float y,
     (tri.v[0].tex_coord * w0 * tri.v[0].position.z +
      tri.v[1].tex_coord * w1 * tri.v[1].position.z +
      tri.v[2].tex_coord * w2 * tri.v[2].position.z) / z,
+    (tri.v[0].pos_view * w0 * tri.v[0].position.z +
+     tri.v[1].pos_view * w1 * tri.v[1].position.z +
+     tri.v[2].pos_view * w2 * tri.v[2].position.z) / z,
   };
 }
 
