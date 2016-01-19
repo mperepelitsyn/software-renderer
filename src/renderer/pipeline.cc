@@ -56,162 +56,70 @@ void rasterizeLine(std::vector<Fragment> &frags, const Vertex &v0,
   }
 }
 
-auto computeInvSlope(const Vertex &top, const Vertex &side) {
-  return (side.position.x - top.position.x) / (top.position.y - side.position.y);
-}
-
 float getNearestPixelCenter(float x) {
   return floor(x) + 0.5;
 }
 
-float lerp(float a, float b, float w) {
-  return (1 - w) * a + w * b;
-}
-
-Vec2 lerp(const Vec2 &v1, const Vec2 &v2, float t) {
+Fragment interpolate(const Triangle &tri, float x, float y,
+                     float w0, float w1, float w2) {
+  auto z = w0 * tri.v[0].position.z + w1 * tri.v[1].position.z +
+           w2 * tri.v[2].position.z;
   return {
-    lerp(v1.x, v2.x, t),
-    lerp(v1.y, v2.y, t),
+    {x, y, z},
+    (tri.v[0].color * w0 * tri.v[0].position.z +
+     tri.v[1].color * w1 * tri.v[1].position.z +
+     tri.v[2].color * w2 * tri.v[2].position.z) / z,
+    (tri.v[0].normal * w0 * tri.v[0].position.z +
+     tri.v[1].normal * w1 * tri.v[1].position.z +
+     tri.v[2].normal * w2 * tri.v[2].position.z) / z,
+    (tri.v[0].tex_coord * w0 * tri.v[0].position.z +
+     tri.v[1].tex_coord * w1 * tri.v[1].position.z +
+     tri.v[2].tex_coord * w2 * tri.v[2].position.z) / z,
   };
 }
 
-Vec3 lerp(const Vec3 &v1, const Vec3 &v2, float t) {
-  return {
-    lerp(v1.x, v2.x, t),
-    lerp(v1.y, v2.y, t),
-    lerp(v1.z, v2.z, t),
-  };
-}
+// Top-left filling convention.
+void rasterizeTriHalfSpace(const Triangle &tri, std::vector<Fragment> &frags) {
+  auto x0 = tri.v[0].position.x;
+  auto x1 = tri.v[1].position.x;
+  auto x2 = tri.v[2].position.x;
+  auto y0 = tri.v[0].position.y;
+  auto y1 = tri.v[1].position.y;
+  auto y2 = tri.v[2].position.y;
+  auto aabb_x = std::minmax({x0, x1, x2});
+  auto aabb_y = std::minmax({y0, y1, y2});
+  auto s = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
+  auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
+  auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
 
-Vec4 lerp(const Vec4 &v1, const Vec4 &v2, float t) {
-  return {
-    lerp(v1.x, v2.x, t),
-    lerp(v1.y, v2.y, t),
-    lerp(v1.z, v2.z, t),
-    lerp(v1.w, v2.w, t),
-  };
-}
+  /*
+  auto dx10 = x1 - x0;
+  auto dx21 = x2 - x1;
+  auto dx02 = x0 - x2;
+  auto dy10 = y1 - y0;
+  auto dy21 = y2 - y1;
+  auto dy02 = y0 - y2;
+  */
 
-Vertex lerp(const Vertex &v1, const Vertex &v2, float t) {
-  return {
-    lerp(v1.position, v2.position, t),
-    lerp(v1.color, v2.color, t),
-    lerp(v1.normal, v2.normal, t),
-    lerp(v1.tex_coord, v2.tex_coord, t),
-  };
-}
+  for (auto y = getNearestPixelCenter(aabb_y.first);
+       y <= getNearestPixelCenter(aabb_y.second); ++y) {
+    for (auto x = getNearestPixelCenter(aabb_x.first);
+         x <= getNearestPixelCenter(aabb_x.second); ++x) {
+      auto e0 = (x2 - x1) * (y - y1) - (x - x1) * (y2 - y1);
+      auto e1 = (x0 - x2) * (y - y2) - (x - x2) * (y0 - y2);
+      auto e2 = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0);
 
-float getLerpT(float a, float b, float c) {
-  return (c - a) / (b - a);
-}
+      if ((e0 > 0 || (e0 == 0 && e0_top_left)) &&
+          (e1 > 0 || (e1 == 0 && e1_top_left)) &&
+          (e2 > 0 || (e2 == 0 && e2_top_left))) {
+        auto w0 = e0 / s;
+        auto w1 = e1 / s;
+        auto w2 = 1 - w0 - w1;
 
-Vec2 getSlopes(const Vertex &v0, const Vertex &v1, const Vertex &v2) {
-  Vec2 slope{computeInvSlope(v0, v1), computeInvSlope(v0, v2)};
-
-  if (v1.position.x > v2.position.x)
-    std::swap(slope.x, slope.y);
-
-  return slope;
-}
-
-bool getEndpointsX(const Vec2 &slope, Vec2 &x, Vec2 &end,
-                   float &lerp_x, float &lerp_step_x) {
-    auto pix_left = getNearestPixelCenter(x.x);
-    auto pix_right = getNearestPixelCenter(x.y);
-
-    end.x = x.x <= pix_left ? pix_left : pix_left + 1;
-    end.y = x.y > pix_right ? pix_right : pix_right - 1;
-
-    lerp_x = getLerpT(x.x, x.y, end.x);
-    lerp_step_x = getLerpT(x.x, x.y, end.x + 1) - lerp_x;
-
-    x.x += slope.x;
-    x.y += slope.y;
-
-    return end.x <= end.y;
-}
-
-bool getEndpointsY(const Vertex &vert, const Vertex &base,
-                   Vec2 &end, float &lerp_y, float &lerp_step_y,
-                   bool bottom) {
-  auto pix_vert = getNearestPixelCenter(vert.position.y);
-  auto pix_base = getNearestPixelCenter(base.position.y);
-
-  if (bottom) {
-    end.x = vert.position.y > pix_vert ? pix_vert : pix_vert - 1;
-    end.y = base.position.y <= pix_base ? pix_base : pix_base + 1;
-  }
-  else {
-    end.x = base.position.y > pix_base ? pix_base : pix_base - 1;
-    end.y = vert.position.y < pix_vert ? pix_vert : pix_vert + 1;
-  }
-  lerp_y = getLerpT(vert.position.y, base.position.y, end.x);
-  lerp_step_y = getLerpT(vert.position.y, base.position.y, end.x - 1) - lerp_y;
-  return end.x >= end.y;
-}
-
-Vec2 getInitialCoordX(const Vertex &v, const Vertex &left, const Vertex &right,
-                      const Vec2 &slope, const Vec2 &y_end, bool bottom) {
-  if (bottom)
-    return {
-      v.position.x + (v.position.y - y_end.x) * slope.x,
-      v.position.x + (v.position.y - y_end.x) * slope.y
-    };
-  else
-    return {
-      left.position.x + (left.position.y - y_end.x) * slope.x,
-      right.position.x + (left.position.y - y_end.x) * slope.y
-    };
-}
-
-void rasterizeTopOrBottomTriangle(const Vertex &v, const Vertex &b1,
-                                  const Vertex &b2,
-                                  std::vector<Fragment> &fragments) {
-  auto bottom = v.position.y > b1.position.y;
-  auto slope = getSlopes(v, b1, b2);
-  Vec2 end_y, end_x, lerp_t, lerp_step;
-  if (!getEndpointsY(v, b1, end_y, lerp_t.y, lerp_step.y, bottom))
-      return;
-
-  auto is_v1_left = b1.position.x < b2.position.x;
-  auto &left_base = is_v1_left ? b1 : b2;
-  auto &right_base = is_v1_left ? b2 : b1;
-  auto x = getInitialCoordX(v, left_base, right_base, slope, end_y, bottom);
-
-  for (auto y = end_y.x; y >= end_y.y; --y) {
-    if (!getEndpointsX(slope, x, end_x, lerp_t.x, lerp_step.x))
-      continue;
-
-    auto left = lerp(v, left_base, lerp_t.y);
-    auto right = lerp(v, right_base, lerp_t.y);
-    for (auto x = end_x.x; x <= end_x.y; ++x) {
-      fragments.emplace_back(
-          Vec3{x, y, 1.f}, lerp(left.color, right.color, lerp_t.x),
-          lerp(left.normal, right.normal, lerp_t.x),
-          lerp(left.tex_coord, right.tex_coord, lerp_t.x)
-          );
-      //fragments.emplace_back(lerp(left, right, lerp_t.x));
-      lerp_t.x += lerp_step.x;
+        frags.emplace_back(interpolate(tri, x, y, w0, w1, w2));
+      }
     }
-    lerp_t.y += lerp_step.y;
-  }
-}
-
-void rasterizeTriangle(std::vector<Fragment> &fragments, const Triangle &tri) {
-  std::vector<Vertex> sorted{std::cbegin(tri.v), std::cend(tri.v)};
-  std::sort(sorted.begin(), sorted.end(),
-      [](Vertex &v1, Vertex &v2) { return v1.position.y > v2.position.y; });
-
-  if (sorted[0].position.y == sorted[1].position.y)
-    rasterizeTopOrBottomTriangle(sorted[2], sorted[0], sorted[1], fragments);
-  else if (sorted[1].position.y == sorted[2].position.y)
-    rasterizeTopOrBottomTriangle(sorted[0], sorted[1], sorted[2], fragments);
-  else {
-    auto t = getLerpT(sorted[0].position.y, sorted[2].position.y,
-                      sorted[1].position.y);
-    auto mid = lerp(sorted[0], sorted[2], t);
-    rasterizeTopOrBottomTriangle(sorted[0], mid, sorted[1], fragments);
-    rasterizeTopOrBottomTriangle(sorted[2], mid, sorted[1], fragments);
   }
 }
 
@@ -287,7 +195,7 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
       rasterizeLine(fragments, tri.v[1], tri.v[2]);
     }
     else {
-      rasterizeTriangle(fragments, tri);
+      rasterizeTriHalfSpace(tri, fragments);
     }
   }
   return fragments;
