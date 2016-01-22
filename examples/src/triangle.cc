@@ -4,16 +4,26 @@ using namespace renderer;
 
 namespace {
 
-void vertexShader(const Vertex &in, const Uniform &u, Vertex &out) {
-  out.position = u.mvp * in.position;
-  auto n = u.mvp * Vec4{in.normal, 0.f};
-  out.normal = {n.x, n.y, n.z};
-  out.color = in.color;
-  out.tex_coord = in.tex_coord;
+struct MyAttrs : public Attrs {
+  MyAttrs(const Vec3 &color) : color{color} {}
+  Vec3 color;
+};
+
+struct Uniform {
+  Mat4 mvp;
+};
+
+void vertexShader(const Vertex &in, const void *u, VertexH &out) {
+  auto ain = static_cast<const MyAttrs*>(in.attrs.get());
+  auto uin = static_cast<const Uniform*>(u);
+
+  out.attrs = std::make_unique<MyAttrs>(*ain);
+  out.pos = uin->mvp * Vec4{in.pos, 1.f};
 }
 
-void fragmentShader(const Fragment &in, const Uniform &, Vec4 &out) {
-  out = Vec4(in.color.r, in.color.g, in.color.b, 1.f);
+void fragmentShader(const Fragment &in, const void *, Vec4 &out) {
+  auto ain = static_cast<const MyAttrs*>(in.attrs.get());
+  out = Vec4(ain->color, 1.f);
 }
 
 } // namespace
@@ -24,14 +34,20 @@ class TriangleApp : public app::App {
 
  private:
   void startup() override {
-    std::vector<Vertex> vertices{
-      {{-.5f, .5f, .0f, 1.f}, {1.f, .0f, .0f}},
-      {{.0f, -.5f, .0f, 1.f}, {0.f, 0.f, 1.f}},
-      {{.5f, .5f, .0f, 1.f}, {0.f, 1.f, 0.f}},
+    Vertex init[] = {
+      {{-.5f, .5f, .0f}, std::make_unique<MyAttrs>(Vec3{1.f, .0f, .0f})},
+      {{.0f, -.5f, .0f}, std::make_unique<MyAttrs>(Vec3{0.f, 1.f, .0f})},
+      {{.5f, .5f, .0f}, std::make_unique<MyAttrs>(Vec3{0.f, .0f, 1.f})},
     };
-    ctx_.setVertices(vertices);
+
+    vertices_.insert(vertices_.begin(),
+                     std::make_move_iterator(std::begin(init)),
+                     std::make_move_iterator(std::end(init)));
+    ctx_.setVertices(&vertices_);
+    ctx_.setAttrSize(3);
     ctx_.setVertexShader(vertexShader);
     ctx_.setFragmentShader(fragmentShader);
+    ctx_.setUniform(&uniform_);
 
     auto view = createViewMatrix({0.f, 0.f, 2.f}, {0.f, 0.f, 0.f},
                                  {0.f, 1.f, 0.f});
@@ -45,12 +61,14 @@ class TriangleApp : public app::App {
 
     auto model = rotateZ(time) * translate({0.3f, 0.f, 0.f}) *
                  rotateZ(-time * 1.2f);
-    ctx_.setUniform({proj_view_ * model, {}});
+    uniform_.mvp = proj_view_ * model;
 
     ctx_.draw();
   }
 
   Mat4 proj_view_;
+  Uniform uniform_;
+  std::vector<Vertex> vertices_;
 };
 
 DEFINE_AND_CALL_APP(TriangleApp, 640, 480, Triangle)

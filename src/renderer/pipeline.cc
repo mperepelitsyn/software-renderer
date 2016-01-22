@@ -9,12 +9,12 @@ namespace renderer {
 namespace {
 
 // Bresenham's line algorithm.
-void rasterizeLine(std::vector<Fragment> &frags, const Vertex &v0,
-                   const Vertex &v1) {
-  int x0 = v0.position.x;
-  int x1 = v1.position.x;
-  int y0 = v0.position.y;
-  int y1 = v1.position.y;
+void rasterizeLine(std::vector<Fragment> &frags, const VertexH &v0,
+                   const VertexH &v1) {
+  int x0 = v0.pos.x;
+  int x1 = v1.pos.x;
+  int y0 = v0.pos.y;
+  int y1 = v1.pos.y;
   auto steep = false;
   if (std::abs(y1 - y0) > std::abs(x1 - x0)) {
     steep = true;
@@ -33,9 +33,9 @@ void rasterizeLine(std::vector<Fragment> &frags, const Vertex &v0,
   int y_growth = y1 > y0 ? 1 : -1;
 
   if (steep)
-    frags.emplace_back(Vec3(y0, x0, v0.position.z));
+    frags.emplace_back(Fragment{Vec3(y0, x0, v0.pos.z), nullptr});
   else
-    frags.emplace_back(Vec3(x0, y0, v0.position.z));
+    frags.emplace_back(Fragment{Vec3(x0, y0, v0.pos.z), nullptr});
 
   if (diff > 0) {
     y += y_growth;
@@ -44,9 +44,9 @@ void rasterizeLine(std::vector<Fragment> &frags, const Vertex &v0,
   for (int x = x0 + 1; x <= x1; ++x) {
     // TODO: Interpolate later.
     if (steep)
-      frags.emplace_back(Vec3(y, x, 1.0f));
+      frags.emplace_back(Fragment{Vec3(y0, x0, v0.pos.z), nullptr});
     else
-      frags.emplace_back(Vec3(x, y, 1.0f));
+      frags.emplace_back(Fragment{Vec3(x0, y0, v0.pos.z), nullptr});
 
     diff += 2 * dy;
     if (diff > 0) {
@@ -61,34 +61,34 @@ float getNearestPixelCenter(float x) {
 }
 
 Fragment interpolate(const Triangle &tri, float x, float y,
-                     float w0, float w1, float w2) {
-  auto z = w0 * tri.v[0].position.z + w1 * tri.v[1].position.z +
-           w2 * tri.v[2].position.z;
+                     float w0, float w1, float w2, unsigned attr_size) {
+  auto z = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
+
+  const float *in[] = {reinterpret_cast<const float*>(tri.v[0]->attrs.get()),
+                       reinterpret_cast<const float*>(tri.v[1]->attrs.get()),
+                       reinterpret_cast<const float*>(tri.v[2]->attrs.get())};
+  auto out = std::make_unique<float[]>(attr_size);
+
+  for (auto i = 0u; i < attr_size; ++i) {
+    out[i] = (*(in[0] + i) * w0 * tri.v[0]->pos.z +
+              *(in[1] + i) * w1 * tri.v[1]->pos.z +
+              *(in[2] + i)* w2 * tri.v[2]->pos.z) / z;
+  }
   return {
     {x, y, z},
-    (tri.v[0].color * w0 * tri.v[0].position.z +
-     tri.v[1].color * w1 * tri.v[1].position.z +
-     tri.v[2].color * w2 * tri.v[2].position.z) / z,
-    (tri.v[0].normal * w0 * tri.v[0].position.z +
-     tri.v[1].normal * w1 * tri.v[1].position.z +
-     tri.v[2].normal * w2 * tri.v[2].position.z) / z,
-    (tri.v[0].tex_coord * w0 * tri.v[0].position.z +
-     tri.v[1].tex_coord * w1 * tri.v[1].position.z +
-     tri.v[2].tex_coord * w2 * tri.v[2].position.z) / z,
-    (tri.v[0].pos_view * w0 * tri.v[0].position.z +
-     tri.v[1].pos_view * w1 * tri.v[1].position.z +
-     tri.v[2].pos_view * w2 * tri.v[2].position.z) / z,
+    std::unique_ptr<const Attrs>(reinterpret_cast<Attrs*>(out.release()))
   };
 }
 
 // Top-left filling convention.
-void rasterizeTriHalfSpace(const Triangle &tri, std::vector<Fragment> &frags) {
-  auto x0 = tri.v[0].position.x;
-  auto x1 = tri.v[1].position.x;
-  auto x2 = tri.v[2].position.x;
-  auto y0 = tri.v[0].position.y;
-  auto y1 = tri.v[1].position.y;
-  auto y2 = tri.v[2].position.y;
+void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_size,
+                           std::vector<Fragment> &frags) {
+  auto x0 = tri.v[0]->pos.x;
+  auto x1 = tri.v[1]->pos.x;
+  auto x2 = tri.v[2]->pos.x;
+  auto y0 = tri.v[0]->pos.y;
+  auto y1 = tri.v[1]->pos.y;
+  auto y2 = tri.v[2]->pos.y;
   auto aabb_x = std::minmax({x0, x1, x2});
   auto aabb_y = std::minmax({y0, y1, y2});
   auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
@@ -119,7 +119,7 @@ void rasterizeTriHalfSpace(const Triangle &tri, std::vector<Fragment> &frags) {
         auto w1 = e1 / tri.darea;
         auto w2 = 1 - w0 - w1;
 
-        frags.emplace_back(interpolate(tri, x, y, w0, w1, w2));
+        frags.emplace_back(interpolate(tri, x, y, w0, w1, w2, attr_size));
       }
     }
   }
@@ -127,34 +127,34 @@ void rasterizeTriHalfSpace(const Triangle &tri, std::vector<Fragment> &frags) {
 
 } // namespace
 
-std::vector<Vertex> invokeVertexShader(const std::vector<Vertex> &vertices,
-                                       const Uniform &uniform,
-                                       VertexShader shader) {
-  std::vector<Vertex> transformed{vertices.size()};
-  for (auto i = 0u; i < vertices.size(); ++i) {
-    shader(vertices[i], uniform, transformed[i]);
+std::vector<VertexH> invokeVertexShader(const std::vector<Vertex> *vertices,
+                                        const void *uniform,
+                                        VertexShader shader) {
+  std::vector<VertexH> transformed{vertices->size()};
+  for (auto i = 0u; i < vertices->size(); ++i) {
+    shader((*vertices)[i], uniform, transformed[i]);
   }
   return transformed;
 }
 
-std::vector<Triangle> assembleTriangles(const std::vector<Vertex> &vertices) {
+std::vector<Triangle> assembleTriangles(std::vector<VertexH> &vertices) {
   auto tri_count = vertices.size() / 3;
   std::vector<Triangle> triangles{tri_count};
   for (auto i = 0u; i < tri_count; ++i) {
-    triangles[i].v[0] = vertices[i * 3];
-    triangles[i].v[1] = vertices[i * 3 + 1];
-    triangles[i].v[2] = vertices[i * 3 + 2];
+    triangles[i].v[0] = &vertices[i * 3];
+    triangles[i].v[1] = &vertices[i * 3 + 1];
+    triangles[i].v[2] = &vertices[i * 3 + 2];
   }
   return triangles;
 }
 
 std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
   std::vector<Triangle> out;
-  auto outside_clip_vol = [] (auto &v) {
-    auto w = v.position.w;
-    if (v.position.x > w || v.position.x < -w ||
-        v.position.y > w || v.position.y < -w ||
-        v.position.z > w || v.position.z < -w)
+  auto outside_clip_vol = [] (auto v) {
+    auto w = v->pos.w;
+    if (v->pos.x > w || v->pos.x < -w ||
+        v->pos.y > w || v->pos.y < -w ||
+        v->pos.z > w || v->pos.z < -w)
       return true;
     return false;
   };
@@ -169,10 +169,10 @@ std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
 std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
   std::vector<Triangle> out;
   for (auto &tri : triangles) {
-    auto darea = (tri.v[1].position.x - tri.v[0].position.x) *
-                 (tri.v[2].position.y - tri.v[0].position.y) -
-                 (tri.v[2].position.x - tri.v[0].position.x) *
-                 (tri.v[1].position.y - tri.v[0].position.y);
+    auto darea = (tri.v[1]->pos.x - tri.v[0]->pos.x) *
+                 (tri.v[2]->pos.y - tri.v[0]->pos.y) -
+                 (tri.v[2]->pos.x - tri.v[0]->pos.x) *
+                 (tri.v[1]->pos.y - tri.v[0]->pos.y);
     if (darea < 0)
       continue;
     out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
@@ -185,30 +185,30 @@ void convertToScreenSpace(std::vector<Triangle> &triangles,
   for (auto &tri : triangles) {
     for (auto &vert : tri.v) {
       // To NDC.
-      vert.position.x /= vert.position.w;
-      vert.position.y /= vert.position.w;
-      vert.position.z /= vert.position.w;
-      vert.position.w = 1.f;
+      vert->pos.x /= vert->pos.w;
+      vert->pos.y /= vert->pos.w;
+      vert->pos.z /= vert->pos.w;
+      vert->pos.w = 1.f;
 
       // To screen space.
-      vert.position.x = vert.position.x * (width - 1) / 2 + (width - 1) / 2;
-      vert.position.y = vert.position.y * (height - 1) / 2 + (height - 1) / 2;
-      vert.position.z = vert.position.z * .5f + .5f;
+      vert->pos.x = vert->pos.x * (width - 1) / 2 + (width - 1) / 2;
+      vert->pos.y = vert->pos.y * (height - 1) / 2 + (height - 1) / 2;
+      vert->pos.z = vert->pos.z * .5f + .5f;
     }
   }
 }
 
 std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
-                                bool wireframe) {
+                                unsigned attr_size, bool wireframe) {
   std::vector<Fragment> fragments;
   for (auto &tri : triangles) {
     if (wireframe) {
-      rasterizeLine(fragments, tri.v[0], tri.v[1]);
-      rasterizeLine(fragments, tri.v[0], tri.v[2]);
-      rasterizeLine(fragments, tri.v[1], tri.v[2]);
+      rasterizeLine(fragments, *tri.v[0], *tri.v[1]);
+      rasterizeLine(fragments, *tri.v[0], *tri.v[2]);
+      rasterizeLine(fragments, *tri.v[1], *tri.v[2]);
     }
     else {
-      rasterizeTriHalfSpace(tri, fragments);
+      rasterizeTriHalfSpace(tri, attr_size, fragments);
     }
   }
   return fragments;
@@ -216,16 +216,16 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
 
 void invokeFragmentShader(const std::vector<Fragment> &fragments,
                           FrameBuffer &fb,
-                          const Uniform &uniform,
+                          const void *uniform,
                           FragmentShader shader) {
   for (auto &frag : fragments) {
-    auto &depth = fb.getDepth(frag.frag_coord.x, frag.frag_coord.y);
+    auto &depth = fb.getDepth(frag.coord.x, frag.coord.y);
     // Early z test.
-    if (frag.frag_coord.z >= depth)
+    if (frag.coord.z >= depth)
       continue;
 
-    shader(frag, uniform, fb.getColor(frag.frag_coord.x, frag.frag_coord.y));
-    depth = frag.frag_coord.z;
+    shader(frag, uniform, fb.getColor(frag.coord.x, frag.coord.y));
+    depth = frag.coord.z;
   }
 }
 
