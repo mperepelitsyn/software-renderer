@@ -66,7 +66,8 @@ std::unique_ptr<const Fragment> interpolate(const Triangle &tri,
     float w0, float w1, float w2, unsigned attr_count) {
   constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
   constexpr auto f_offset = sizeof(Fragment::coord) / sizeof(float);
-  auto z = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
+  auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
+  auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
 
   const float *in[] = {reinterpret_cast<const float*>(tri.v[0]) + v_offset,
                        reinterpret_cast<const float*>(tri.v[1]) + v_offset,
@@ -75,11 +76,11 @@ std::unique_ptr<const Fragment> interpolate(const Triangle &tri,
 
   out[0] = x;
   out[1] = y;
-  out[2] = z;
+  out[2] = z_s;
   for (auto i = 0u; i < attr_count; ++i) {
-    out[i + f_offset] = (*(in[0] + i) * w0 * tri.v[0]->pos.z +
-                         *(in[1] + i) * w1 * tri.v[1]->pos.z +
-                         *(in[2] + i) * w2 * tri.v[2]->pos.z) / z;
+    out[i + f_offset] = (*(in[0] + i) * w0 * tri.v[0]->pos.w +
+                         *(in[1] + i) * w1 * tri.v[1]->pos.w +
+                         *(in[2] + i) * w2 * tri.v[2]->pos.w) / z_v;
   }
   return std::unique_ptr<const Fragment>(
       reinterpret_cast<Fragment*>(out.release()));
@@ -204,10 +205,11 @@ void convertToScreenSpace(std::vector<Triangle> &triangles,
   for (auto &tri : triangles) {
     for (auto &vert : tri.v) {
       // To NDC.
-      vert->pos.x /= vert->pos.w;
-      vert->pos.y /= vert->pos.w;
-      vert->pos.z /= vert->pos.w;
-      vert->pos.w = 1.f;
+      auto z_recipr = 1.f / vert->pos.w;
+      vert->pos.x *= z_recipr;
+      vert->pos.y *= z_recipr;
+      vert->pos.z *= z_recipr;
+      vert->pos.w = z_recipr;
 
       // To screen space.
       vert->pos.x = vert->pos.x * (width - 1) / 2 + (width - 1) / 2;
