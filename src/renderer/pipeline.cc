@@ -133,33 +133,28 @@ void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_count,
 
 } // namespace
 
-std::vector<std::unique_ptr<VertexH>> invokeVertexShader(const VertexBuffer &vb,
-    const Program &prog, const void *uniform) {
-  std::vector<std::unique_ptr<VertexH>> transformed{vb.count};
+std::vector<VertexH*> invokeVertexShader(const VertexBuffer &vb,
+    const Program &prog, const void *uniform, Arena &arena) {
+  std::vector<VertexH*> transformed{vb.count};
   auto buf = static_cast<const char*>(vb.ptr);
 
   for (auto i = 0u; i < vb.count; ++i) {
-    auto out = std::make_unique<float[]>(
-        sizeof(VertexH::pos) / sizeof(float) + prog.attr_count);
-    transformed[i].reset(reinterpret_cast<VertexH*>(out.release()));
-
-    prog.vs(*reinterpret_cast<const Vertex*>(buf), uniform,
-           *transformed[i].get());
+    transformed[i] = arena.allocate<VertexH>();
+    prog.vs(*reinterpret_cast<const Vertex*>(buf), uniform, *transformed[i]);
     buf += vb.stride;
   }
 
   return transformed;
 }
 
-std::vector<Triangle> assembleTriangles(
-    std::vector<std::unique_ptr<VertexH>> &vertices) {
+std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices) {
   auto tri_count = vertices.size() / 3;
   std::vector<Triangle> triangles{tri_count};
 
   for (auto i = 0u; i < tri_count; ++i) {
-    triangles[i].v[0] = vertices[i * 3].get();
-    triangles[i].v[1] = vertices[i * 3 + 1].get();
-    triangles[i].v[2] = vertices[i * 3 + 2].get();
+    triangles[i].v[0] = vertices[i * 3];
+    triangles[i].v[1] = vertices[i * 3 + 1];
+    triangles[i].v[2] = vertices[i * 3 + 2];
   }
 
   return triangles;

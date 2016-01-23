@@ -16,7 +16,8 @@ class Context {
   void setProgram(const Program *program) { program_ = program; }
   void draw();
 
- protected:
+ private:
+  Arena arena_;
   const VertexBuffer *vb_{nullptr};
   FrameBuffer *fb_{nullptr};
   const Program *program_;

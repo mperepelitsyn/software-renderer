@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 
+#include "renderer/arena.h"
 #include "renderer/framebuffer.h"
 #include "renderer/matrix.h"
 #include "renderer/vector.h"
@@ -43,11 +44,10 @@ struct Triangle {
   float darea;
 };
 
-std::vector<std::unique_ptr<VertexH>> invokeVertexShader(const VertexBuffer &vb,
-    const Program &prog, const void *uniform);
+std::vector<VertexH*> invokeVertexShader(const VertexBuffer &vb,
+    const Program &prog, const void *uniform, Arena &arena);
 
-std::vector<Triangle> assembleTriangles(
-    std::vector<std::unique_ptr<VertexH>> &vertices);
+std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices);
 
 std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
 
