@@ -14,7 +14,7 @@ void FPSCounter::tick(double delta) {
 
   if (elapsed_ >= freq_) {
     std::ostringstream oss{name_, std::ios_base::ate};
-    auto fps = 1.0 / freq_ * frames_;
+    auto fps = 1.0 / elapsed_ * frames_;
 
     oss << " [" << std::round(fps) << " fps, "
         << std::round(1000.0 / fps) << " ms]";
