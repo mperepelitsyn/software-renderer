@@ -44,24 +44,35 @@ struct Triangle {
   float darea;
 };
 
-std::vector<VertexH*> invokeVertexShader(const VertexBuffer &vb,
-    const Program &prog, const void *uniform, Arena &arena);
+class Pipeline {
+ public:
+  void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
+  void setFrameBuffer(FrameBuffer &fb) { fb_ = &fb; }
+  void setWireframeMode(bool mode) { wireframe_ = mode; }
+  void setUniform(const void *u) { uniform_ = u; }
+  void setProgram(const Program *program) { prog_ = program; }
+  void draw();
 
-std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices);
+ private:
+  std::vector<VertexH*> invokeVertexShader();
+  std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices);
+  std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
+  std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles);
+  void convertToScreenSpace(std::vector<Triangle> &triangles,
+                            unsigned width, unsigned height);
+  std::vector<std::unique_ptr<const Fragment>> rasterize(
+      const std::vector<Triangle> &triangles);
+  void invokeFragmentShader(
+      const std::vector<std::unique_ptr<const Fragment>> &frags);
 
-std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
+  Arena arena_;
+  const VertexBuffer *vb_{nullptr};
+  FrameBuffer *fb_{nullptr};
+  const Program *prog_;
+  const void *uniform_{nullptr};
+  bool wireframe_{false};
+};
 
-std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles);
 
-void convertToScreenSpace(std::vector<Triangle> &triangles,
-                          unsigned width, unsigned height);
-
-std::vector<std::unique_ptr<const Fragment>> rasterize(
-    const std::vector<Triangle> &triangles, unsigned attr_count,
-    bool wireframe);
-
-void invokeFragmentShader(
-    const std::vector<std::unique_ptr<const Fragment>> &frags,
-    FrameBuffer &fb, const void *uniform, FragmentShader shader);
 
 } // namespace renderer

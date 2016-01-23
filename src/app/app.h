@@ -6,7 +6,7 @@
 
 #include "app/error.h"
 #include "app/fps_counter.h"
-#include "renderer/context.h"
+#include "renderer/pipeline.h"
 
 #define DEFINE_AND_CALL_APP(app_type, w, h, title) \
 int main() { \
@@ -34,7 +34,7 @@ class App {
   virtual void shutdown() {}
   void setTitle(const std::string &title);
 
-  renderer::Context ctx_;
+  renderer::Pipeline ctx_;
   renderer::FrameBuffer fb_;
   unsigned width_, height_;
 

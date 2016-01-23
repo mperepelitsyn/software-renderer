@@ -133,21 +133,37 @@ void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_count,
 
 } // namespace
 
-std::vector<VertexH*> invokeVertexShader(const VertexBuffer &vb,
-    const Program &prog, const void *uniform, Arena &arena) {
-  std::vector<VertexH*> transformed{vb.count};
-  auto buf = static_cast<const char*>(vb.ptr);
+void Pipeline::draw() {
+  assert(vb_);
+  assert(prog_);
 
-  for (auto i = 0u; i < vb.count; ++i) {
-    transformed[i] = arena.allocate<VertexH>();
-    prog.vs(*reinterpret_cast<const Vertex*>(buf), uniform, *transformed[i]);
-    buf += vb.stride;
+  arena_.reset(vb_->count,
+               prog_->attr_count * sizeof(float) + sizeof(VertexH::pos));
+
+  auto transformed = invokeVertexShader();
+  auto triangles = assembleTriangles(transformed);
+  triangles = clipTriangles(triangles);
+  convertToScreenSpace(triangles, fb_->getWidth(), fb_->getHeight());
+  triangles = cullBackFacing(triangles);
+  auto fragments = rasterize(triangles);
+  invokeFragmentShader(fragments);
+}
+
+std::vector<VertexH*> Pipeline::invokeVertexShader() {
+  std::vector<VertexH*> transformed{vb_->count};
+  auto buf = static_cast<const char*>(vb_->ptr);
+
+  for (auto i = 0u; i < vb_->count; ++i) {
+    transformed[i] = arena_.allocate<VertexH>();
+    prog_->vs(*reinterpret_cast<const Vertex*>(buf), uniform_, *transformed[i]);
+    buf += vb_->stride;
   }
 
   return transformed;
 }
 
-std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices) {
+std::vector<Triangle> Pipeline::assembleTriangles(
+    const std::vector<VertexH*> &vertices) {
   auto tri_count = vertices.size() / 3;
   std::vector<Triangle> triangles{tri_count};
 
@@ -160,7 +176,8 @@ std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices) {
   return triangles;
 }
 
-std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
+std::vector<Triangle> Pipeline::clipTriangles(
+    const std::vector<Triangle> &triangles) {
   std::vector<Triangle> out;
   auto outside_clip_vol = [] (auto v) {
     auto w = v->pos.w;
@@ -179,7 +196,8 @@ std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
   return out;
 }
 
-std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
+std::vector<Triangle> Pipeline::cullBackFacing(
+    const std::vector<Triangle> &triangles) {
   std::vector<Triangle> out;
 
   for (auto &tri : triangles) {
@@ -195,8 +213,8 @@ std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
   return out;
 }
 
-void convertToScreenSpace(std::vector<Triangle> &triangles,
-                          unsigned width, unsigned height) {
+void Pipeline::convertToScreenSpace(std::vector<Triangle> &triangles,
+                                    unsigned width, unsigned height) {
   for (auto &tri : triangles) {
     for (auto &vert : tri.v) {
       // To NDC.
@@ -214,35 +232,32 @@ void convertToScreenSpace(std::vector<Triangle> &triangles,
   }
 }
 
-std::vector<std::unique_ptr<const Fragment>> rasterize(
-    const std::vector<Triangle> &triangles, unsigned attr_count,
-    bool wireframe) {
-  std::vector<std::unique_ptr<const Fragment>> fragments;
-
+std::vector<std::unique_ptr<const Fragment>> Pipeline::rasterize(
+    const std::vector<Triangle> &triangles) {
+  std::vector<std::unique_ptr<const Fragment>> frags;
   for (auto &tri : triangles) {
-    if (wireframe) {
-      rasterizeLine(fragments, *tri.v[0], *tri.v[1]);
-      rasterizeLine(fragments, *tri.v[0], *tri.v[2]);
-      rasterizeLine(fragments, *tri.v[1], *tri.v[2]);
+    if (wireframe_) {
+      rasterizeLine(frags, *tri.v[0], *tri.v[1]);
+      rasterizeLine(frags, *tri.v[0], *tri.v[2]);
+      rasterizeLine(frags, *tri.v[1], *tri.v[2]);
     }
     else {
-      rasterizeTriHalfSpace(tri, attr_count, fragments);
+      rasterizeTriHalfSpace(tri, prog_->attr_count, frags);
     }
   }
-
-  return fragments;
+  return frags;
 }
 
-void invokeFragmentShader(
-    const std::vector<std::unique_ptr<const Fragment>> &fragments,
-    FrameBuffer &fb, const void *uniform, FragmentShader shader) {
+void Pipeline::invokeFragmentShader(
+    const std::vector<std::unique_ptr<const Fragment>> &fragments) {
   for (auto &frag : fragments) {
-    auto &depth = fb.getDepth(frag->coord.x, frag->coord.y);
+    auto &depth = fb_->getDepth(frag->coord.x, frag->coord.y);
     // Early z test.
     if (frag->coord.z >= depth)
       continue;
 
-    shader(*frag.get(), uniform, fb.getColor(frag->coord.x, frag->coord.y));
+    prog_->fs(*frag.get(), uniform_,
+                 fb_->getColor(frag->coord.x, frag->coord.y));
     depth = frag->coord.z;
   }
 }
