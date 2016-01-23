@@ -7,13 +7,15 @@
 
 namespace app {
 
-struct ObjAttrs : public renderer::Attrs {
-  ObjAttrs(const renderer::Vec3 &normal, const renderer::Vec2 &tc)
-    : normal{normal}, tc{tc} {}
+struct ObjVertex : renderer::Vertex {
+  ObjVertex(const renderer::Vec3 &pos, const renderer::Vec3 &normal,
+            const renderer::Vec2 &tc)
+    : Vertex{pos}, normal{normal}, tc{tc} {}
+
   renderer::Vec3 normal;
   renderer::Vec2 tc;
 };
 
-std::vector<renderer::Vertex> parseObj(const std::string &path);
+std::vector<ObjVertex> parseObj(const std::string &path);
 
 } // namespace app

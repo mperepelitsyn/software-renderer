@@ -4,27 +4,41 @@ using namespace renderer;
 
 namespace {
 
-struct MyAttrs : public Attrs {
-  MyAttrs(const Vec3 &color) : color{color} {}
+struct MyVertex : Vertex {
+  MyVertex(const Vec3 &pos, const Vec3 &color) : Vertex{pos}, color{color} {}
   Vec3 color;
 };
 
-struct Uniform {
-  Mat4 mvp;
+struct MyProgram : Program {
+  struct MyVertexH : VertexH {
+    Vec3 color;
+  };
+
+  struct MyFragment : Fragment {
+    Vec3 color;
+  };
+
+  struct Uniform {
+    Mat4 mvp;
+  };
+
+  static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
+    auto &vin = static_cast<const MyVertex&>(in);
+    auto uin = static_cast<const Uniform*>(u);
+    auto &vout = static_cast<MyVertexH&>(out);
+
+    vout.pos = uin->mvp * Vec4{in.pos, 1.f};
+    vout.color = vin.color;
+  }
+
+  static void fragmentShader(const Fragment &in, const void *, Vec4 &out) {
+    auto &fin = static_cast<const MyFragment&>(in);
+    out = Vec4(fin.color, 1.f);
+  }
+
+  MyProgram() : Program{vertexShader, fragmentShader, 3} {}
 };
 
-void vertexShader(const Vertex &in, const void *u, VertexH &out) {
-  auto ain = static_cast<const MyAttrs*>(in.attrs.get());
-  auto uin = static_cast<const Uniform*>(u);
-
-  out.attrs = std::make_unique<MyAttrs>(*ain);
-  out.pos = uin->mvp * Vec4{in.pos, 1.f};
-}
-
-void fragmentShader(const Fragment &in, const void *, Vec4 &out) {
-  auto ain = static_cast<const MyAttrs*>(in.attrs.get());
-  out = Vec4(ain->color, 1.f);
-}
 
 } // namespace
 
@@ -34,19 +48,8 @@ class TriangleApp : public app::App {
 
  private:
   void startup() override {
-    Vertex init[] = {
-      {{-.5f, .5f, .0f}, std::make_unique<MyAttrs>(Vec3{1.f, .0f, .0f})},
-      {{.0f, -.5f, .0f}, std::make_unique<MyAttrs>(Vec3{0.f, 1.f, .0f})},
-      {{.5f, .5f, .0f}, std::make_unique<MyAttrs>(Vec3{0.f, .0f, 1.f})},
-    };
-
-    vertices_.insert(vertices_.begin(),
-                     std::make_move_iterator(std::begin(init)),
-                     std::make_move_iterator(std::end(init)));
-    ctx_.setVertices(&vertices_);
-    ctx_.setAttrSize(3);
-    ctx_.setVertexShader(vertexShader);
-    ctx_.setFragmentShader(fragmentShader);
+    ctx_.setVertexBuffer(&vb_);
+    ctx_.setProgram(&prog_);
     ctx_.setUniform(&uniform_);
 
     auto view = createViewMatrix({0.f, 0.f, 2.f}, {0.f, 0.f, 0.f},
@@ -66,9 +69,16 @@ class TriangleApp : public app::App {
     ctx_.draw();
   }
 
+  std::vector<MyVertex> vertices_{
+        {{-.5f, .5f, .0f}, {1.f, .0f, .0f}},
+        {{.0f, -.5f, .0f}, {0.f, 1.f, .0f}},
+        {{.5f, .5f, .0f}, {0.f, .0f, 1.f}},
+      };
+  VertexBuffer vb_{&vertices_[0],
+    static_cast<unsigned>(vertices_.size()), sizeof(MyVertex)};
   Mat4 proj_view_;
-  Uniform uniform_;
-  std::vector<Vertex> vertices_;
+  MyProgram::Uniform uniform_;
+  MyProgram prog_;
 };
 
 DEFINE_AND_CALL_APP(TriangleApp, 640, 480, Triangle)

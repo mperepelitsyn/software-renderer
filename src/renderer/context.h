@@ -9,22 +9,18 @@ namespace renderer {
 
 class Context {
  public:
-  void setVertices(const std::vector<Vertex> *vert) { vertices_ = vert; }
+  void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
   void setFrameBuffer(FrameBuffer &fb) { fb_ = &fb; }
-  void setVertexShader(VertexShader vs) { vs_ = vs; }
-  void setFragmentShader(FragmentShader fs) { fs_ = fs; }
   void setWireframeMode(bool mode) { wireframe_ = mode; }
   void setUniform(const void *u) { uniform_ = u; }
-  void setAttrSize(unsigned sz) { attr_size_ = sz; }
+  void setProgram(const Program *program) { program_ = program; }
   void draw();
 
  protected:
-  const std::vector<Vertex> *vertices_{nullptr};
+  const VertexBuffer *vb_{nullptr};
   FrameBuffer *fb_{nullptr};
-  VertexShader vs_{nullptr};
-  FragmentShader fs_{nullptr};
+  const Program *program_;
   const void *uniform_{nullptr};
-  unsigned attr_size_{};
   bool wireframe_{false};
 };
 

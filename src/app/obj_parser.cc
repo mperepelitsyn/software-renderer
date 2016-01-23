@@ -27,8 +27,8 @@ auto consumeFaceElement(std::istringstream &iss) {
 
 } // namespace
 
-std::vector<Vertex> parseObj(const std::string &path) {
-  std::vector<Vertex> out;
+std::vector<ObjVertex> parseObj(const std::string &path) {
+  std::vector<ObjVertex> out;
   std::ifstream fs(path);
   if (!fs.good())
     return out;
@@ -65,12 +65,9 @@ std::vector<Vertex> parseObj(const std::string &path) {
 
       for (auto i = 0u; i < 3; ++i) {
         std::tie(vertex_id, uv_id, normal_id) = consumeFaceElement(iss);
-        auto attrs = std::make_unique<ObjAttrs>(
-            normal_id ? normals[normal_id - 1] : Vec3{},
-            uv_id ? uvs[uv_id - 1] : Vec2{});
-
-        out.push_back({vertices[vertex_id - 1],
-                       std::unique_ptr<Attrs>(attrs.release())});
+        out.emplace_back(vertices[vertex_id - 1],
+                         normal_id ? normals[normal_id - 1] : Vec3{},
+                         uv_id ? uvs[uv_id - 1] : Vec2{});
       }
     }
   }

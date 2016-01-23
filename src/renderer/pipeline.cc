@@ -9,7 +9,8 @@ namespace renderer {
 namespace {
 
 // Bresenham's line algorithm.
-void rasterizeLine(std::vector<Fragment> &frags, const VertexH &v0,
+void rasterizeLine(std::vector<std::unique_ptr<const Fragment>> &frags,
+                   const VertexH &v0,
                    const VertexH &v1) {
   int x0 = v0.pos.x;
   int x1 = v1.pos.x;
@@ -33,9 +34,9 @@ void rasterizeLine(std::vector<Fragment> &frags, const VertexH &v0,
   int y_growth = y1 > y0 ? 1 : -1;
 
   if (steep)
-    frags.emplace_back(Fragment{Vec3(y0, x0, v0.pos.z), nullptr});
+    frags.emplace_back(std::make_unique<Fragment>(Vec3(y0, x0, v0.pos.z)));
   else
-    frags.emplace_back(Fragment{Vec3(x0, y0, v0.pos.z), nullptr});
+    frags.emplace_back(std::make_unique<Fragment>(Vec3(x0, y0, v0.pos.z)));
 
   if (diff > 0) {
     y += y_growth;
@@ -44,9 +45,9 @@ void rasterizeLine(std::vector<Fragment> &frags, const VertexH &v0,
   for (int x = x0 + 1; x <= x1; ++x) {
     // TODO: Interpolate later.
     if (steep)
-      frags.emplace_back(Fragment{Vec3(y0, x0, v0.pos.z), nullptr});
+      frags.emplace_back(std::make_unique<Fragment>(Vec3(y0, x0, v0.pos.z)));
     else
-      frags.emplace_back(Fragment{Vec3(x0, y0, v0.pos.z), nullptr});
+      frags.emplace_back(std::make_unique<Fragment>(Vec3(x0, y0, v0.pos.z)));
 
     diff += 2 * dy;
     if (diff > 0) {
@@ -60,29 +61,33 @@ float getNearestPixelCenter(float x) {
   return floor(x) + 0.5;
 }
 
-Fragment interpolate(const Triangle &tri, float x, float y,
-                     float w0, float w1, float w2, unsigned attr_size) {
+std::unique_ptr<const Fragment> interpolate(const Triangle &tri,
+    float x, float y,
+    float w0, float w1, float w2, unsigned attr_count) {
+  constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
+  constexpr auto f_offset = sizeof(Fragment::coord) / sizeof(float);
   auto z = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
 
-  const float *in[] = {reinterpret_cast<const float*>(tri.v[0]->attrs.get()),
-                       reinterpret_cast<const float*>(tri.v[1]->attrs.get()),
-                       reinterpret_cast<const float*>(tri.v[2]->attrs.get())};
-  auto out = std::make_unique<float[]>(attr_size);
+  const float *in[] = {reinterpret_cast<const float*>(tri.v[0]) + v_offset,
+                       reinterpret_cast<const float*>(tri.v[1]) + v_offset,
+                       reinterpret_cast<const float*>(tri.v[2]) + v_offset};
+  auto out = std::make_unique<float[]>(f_offset + attr_count);
 
-  for (auto i = 0u; i < attr_size; ++i) {
-    out[i] = (*(in[0] + i) * w0 * tri.v[0]->pos.z +
-              *(in[1] + i) * w1 * tri.v[1]->pos.z +
-              *(in[2] + i)* w2 * tri.v[2]->pos.z) / z;
+  out[0] = x;
+  out[1] = y;
+  out[2] = z;
+  for (auto i = 0u; i < attr_count; ++i) {
+    out[i + f_offset] = (*(in[0] + i) * w0 * tri.v[0]->pos.z +
+                         *(in[1] + i) * w1 * tri.v[1]->pos.z +
+                         *(in[2] + i) * w2 * tri.v[2]->pos.z) / z;
   }
-  return {
-    {x, y, z},
-    std::unique_ptr<const Attrs>(reinterpret_cast<Attrs*>(out.release()))
-  };
+  return std::unique_ptr<const Fragment>(
+      reinterpret_cast<Fragment*>(out.release()));
 }
 
 // Top-left filling convention.
-void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_size,
-                           std::vector<Fragment> &frags) {
+void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_count,
+    std::vector<std::unique_ptr<const Fragment>> &frags) {
   auto x0 = tri.v[0]->pos.x;
   auto x1 = tri.v[1]->pos.x;
   auto x2 = tri.v[2]->pos.x;
@@ -119,7 +124,7 @@ void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_size,
         auto w1 = e1 / tri.darea;
         auto w2 = 1 - w0 - w1;
 
-        frags.emplace_back(interpolate(tri, x, y, w0, w1, w2, attr_size));
+        frags.emplace_back(interpolate(tri, x, y, w0, w1, w2, attr_count));
       }
     }
   }
@@ -127,24 +132,35 @@ void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_size,
 
 } // namespace
 
-std::vector<VertexH> invokeVertexShader(const std::vector<Vertex> *vertices,
-                                        const void *uniform,
-                                        VertexShader shader) {
-  std::vector<VertexH> transformed{vertices->size()};
-  for (auto i = 0u; i < vertices->size(); ++i) {
-    shader((*vertices)[i], uniform, transformed[i]);
+std::vector<std::unique_ptr<VertexH>> invokeVertexShader(const VertexBuffer &vb,
+    const Program &prog, const void *uniform) {
+  std::vector<std::unique_ptr<VertexH>> transformed{vb.count};
+  auto buf = static_cast<const char*>(vb.ptr);
+
+  for (auto i = 0u; i < vb.count; ++i) {
+    auto out = std::make_unique<float[]>(
+        sizeof(VertexH::pos) / sizeof(float) + prog.attr_count);
+    transformed[i].reset(reinterpret_cast<VertexH*>(out.release()));
+
+    prog.vs(*reinterpret_cast<const Vertex*>(buf), uniform,
+           *transformed[i].get());
+    buf += vb.stride;
   }
+
   return transformed;
 }
 
-std::vector<Triangle> assembleTriangles(std::vector<VertexH> &vertices) {
+std::vector<Triangle> assembleTriangles(
+    std::vector<std::unique_ptr<VertexH>> &vertices) {
   auto tri_count = vertices.size() / 3;
   std::vector<Triangle> triangles{tri_count};
+
   for (auto i = 0u; i < tri_count; ++i) {
-    triangles[i].v[0] = &vertices[i * 3];
-    triangles[i].v[1] = &vertices[i * 3 + 1];
-    triangles[i].v[2] = &vertices[i * 3 + 2];
+    triangles[i].v[0] = vertices[i * 3].get();
+    triangles[i].v[1] = vertices[i * 3 + 1].get();
+    triangles[i].v[2] = vertices[i * 3 + 2].get();
   }
+
   return triangles;
 }
 
@@ -158,6 +174,7 @@ std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
       return true;
     return false;
   };
+
   for (auto &tri : triangles) {
     if (std::any_of(std::cbegin(tri.v), std::cend(tri.v), outside_clip_vol))
       continue;
@@ -168,6 +185,7 @@ std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles) {
 
 std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
   std::vector<Triangle> out;
+
   for (auto &tri : triangles) {
     auto darea = (tri.v[1]->pos.x - tri.v[0]->pos.x) *
                  (tri.v[2]->pos.y - tri.v[0]->pos.y) -
@@ -177,6 +195,7 @@ std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles) {
       continue;
     out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
   }
+
   return out;
 }
 
@@ -198,9 +217,11 @@ void convertToScreenSpace(std::vector<Triangle> &triangles,
   }
 }
 
-std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
-                                unsigned attr_size, bool wireframe) {
-  std::vector<Fragment> fragments;
+std::vector<std::unique_ptr<const Fragment>> rasterize(
+    const std::vector<Triangle> &triangles, unsigned attr_count,
+    bool wireframe) {
+  std::vector<std::unique_ptr<const Fragment>> fragments;
+
   for (auto &tri : triangles) {
     if (wireframe) {
       rasterizeLine(fragments, *tri.v[0], *tri.v[1]);
@@ -208,24 +229,24 @@ std::vector<Fragment> rasterize(const std::vector<Triangle> &triangles,
       rasterizeLine(fragments, *tri.v[1], *tri.v[2]);
     }
     else {
-      rasterizeTriHalfSpace(tri, attr_size, fragments);
+      rasterizeTriHalfSpace(tri, attr_count, fragments);
     }
   }
+
   return fragments;
 }
 
-void invokeFragmentShader(const std::vector<Fragment> &fragments,
-                          FrameBuffer &fb,
-                          const void *uniform,
-                          FragmentShader shader) {
+void invokeFragmentShader(
+    const std::vector<std::unique_ptr<const Fragment>> &fragments,
+    FrameBuffer &fb, const void *uniform, FragmentShader shader) {
   for (auto &frag : fragments) {
-    auto &depth = fb.getDepth(frag.coord.x, frag.coord.y);
+    auto &depth = fb.getDepth(frag->coord.x, frag->coord.y);
     // Early z test.
-    if (frag.coord.z >= depth)
+    if (frag->coord.z >= depth)
       continue;
 
-    shader(frag, uniform, fb.getColor(frag.coord.x, frag.coord.y));
-    depth = frag.coord.z;
+    shader(*frag.get(), uniform, fb.getColor(frag->coord.x, frag->coord.y));
+    depth = frag->coord.z;
   }
 }
 
