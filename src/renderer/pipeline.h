@@ -46,11 +46,14 @@ struct Triangle {
 
 class Pipeline {
  public:
+  enum Culling { NONE, FRONT_FACING, BACK_FACING };
+
   void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
   void setFrameBuffer(FrameBuffer &fb) { fb_ = &fb; }
   void setWireframeMode(bool mode) { wireframe_ = mode; }
   void setUniform(const void *u) { uniform_ = u; }
   void setProgram(const Program *program) { prog_ = program; }
+  void setCulling(Culling mode) { culling_ = mode; }
   void draw();
 
   constexpr static unsigned max_fragment_size{32}; // In floats.
@@ -59,7 +62,7 @@ class Pipeline {
   std::vector<VertexH*> invokeVertexShader();
   std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices);
   std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
-  std::vector<Triangle> cullBackFacing(const std::vector<Triangle> &triangles);
+  std::vector<Triangle> cullTriangles(const std::vector<Triangle> &triangles);
   void convertToScreenSpace(std::vector<Triangle> &triangles,
                             unsigned width, unsigned height);
   void rasterize(const std::vector<Triangle> &triangles);
@@ -79,6 +82,7 @@ class Pipeline {
   FrameBuffer *fb_{nullptr};
   const Program *prog_;
   const void *uniform_{nullptr};
+  Culling culling_{NONE};
   bool wireframe_{false};
 };
 

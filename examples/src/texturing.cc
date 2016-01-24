@@ -90,6 +90,7 @@ class TexturingApp : public app::App {
     ctx_.setVertexBuffer(&vb_);
     ctx_.setProgram(&prog_);
     ctx_.setUniform(&uniform_);
+    ctx_.setCulling(Pipeline::BACK_FACING);
 
     view_ = createViewMatrix({0.f, 0.f, 3.7f}, {0.f, 0.f, 0.f},
                              {0.f, 1.f, 0.f});

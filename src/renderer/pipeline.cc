@@ -40,7 +40,7 @@ void Pipeline::draw() {
   auto triangles = assembleTriangles(transformed);
   triangles = clipTriangles(triangles);
   convertToScreenSpace(triangles, fb_->getWidth(), fb_->getHeight());
-  triangles = cullBackFacing(triangles);
+  triangles = cullTriangles(triangles);
   rasterize(triangles);
 }
 
@@ -91,7 +91,7 @@ std::vector<Triangle> Pipeline::clipTriangles(
   return out;
 }
 
-std::vector<Triangle> Pipeline::cullBackFacing(
+std::vector<Triangle> Pipeline::cullTriangles(
     const std::vector<Triangle> &triangles) {
   std::vector<Triangle> out;
 
@@ -100,9 +100,22 @@ std::vector<Triangle> Pipeline::cullBackFacing(
                  (tri.v[2]->pos.y - tri.v[0]->pos.y) -
                  (tri.v[2]->pos.x - tri.v[0]->pos.x) *
                  (tri.v[1]->pos.y - tri.v[0]->pos.y);
-    if (darea < 0)
-      continue;
-    out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
+    switch (culling_) {
+    case NONE:
+      if (darea < 0)
+        out.push_back({{tri.v[0], tri.v[2], tri.v[1]}, -darea});
+      else
+        out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
+      break;
+    case BACK_FACING:
+      if (darea >= 0)
+        out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
+      break;
+    case FRONT_FACING:
+      if (darea < 0)
+        out.push_back({{tri.v[0], tri.v[2], tri.v[1]}, -darea});
+      break;
+    }
   }
 
   return out;
