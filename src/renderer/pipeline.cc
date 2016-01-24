@@ -206,25 +206,30 @@ void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
   auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
   auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
 
+  auto dx0 = x2 - x1;
+  auto dx1 = x0 - x2;
+  auto dx2 = x1 - x0;
+  auto dy0 = y2 - y1;
+  auto dy1 = y0 - y2;
+  auto dy2 = y1 - y0;
+
+  auto x_start = getNearestPixelCenter(aabb_x.first);
+  auto y_start = getNearestPixelCenter(aabb_y.first);
+  auto x_end = getNearestPixelCenter(aabb_x.second);
+  auto y_end = getNearestPixelCenter(aabb_y.second);
+
+  auto y_e0 =  dx0 * y_start - dy0 * x_start + dy0 * x1 - dx0 * y1;
+  auto y_e1 =  dx1 * y_start - dy1 * x_start + dy1 * x2 - dx1 * y2;
+  auto y_e2 =  dx2 * y_start - dy2 * x_start + dy2 * x0 - dx2 * y0;
+
   precomputeAttrs(tri, prog_->attr_count);
 
-  /*
-  auto dx10 = x1 - x0;
-  auto dx21 = x2 - x1;
-  auto dx02 = x0 - x2;
-  auto dy10 = y1 - y0;
-  auto dy21 = y2 - y1;
-  auto dy02 = y0 - y2;
-  */
+  for (auto y = y_start; y <= y_end; ++y) {
+    auto e0 = y_e0;
+    auto e1 = y_e1;
+    auto e2 = y_e2;
 
-  for (auto y = getNearestPixelCenter(aabb_y.first);
-       y <= getNearestPixelCenter(aabb_y.second); ++y) {
-    for (auto x = getNearestPixelCenter(aabb_x.first);
-         x <= getNearestPixelCenter(aabb_x.second); ++x) {
-      auto e0 = (x2 - x1) * (y - y1) - (x - x1) * (y2 - y1);
-      auto e1 = (x0 - x2) * (y - y2) - (x - x2) * (y0 - y2);
-      auto e2 = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0);
-
+    for (auto x = x_start; x <= x_end; ++x) {
       if ((e0 > 0 || (e0 == 0 && e0_top_left)) &&
           (e1 > 0 || (e1 == 0 && e1_top_left)) &&
           (e2 > 0 || (e2 == 0 && e2_top_left))) {
@@ -234,7 +239,14 @@ void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
 
         fill(tri, x, y, w0, w1, w2);
       }
+      e0 -= dy0;
+      e1 -= dy1;
+      e2 -= dy2;
     }
+
+    y_e0 += dx0;
+    y_e1 += dx1;
+    y_e2 += dx2;
   }
 }
 
