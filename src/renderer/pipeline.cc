@@ -8,127 +8,12 @@ namespace renderer {
 
 namespace {
 
-// Bresenham's line algorithm.
-void rasterizeLine(std::vector<std::unique_ptr<const Fragment>> &frags,
-                   const VertexH &v0,
-                   const VertexH &v1) {
-  int x0 = v0.pos.x;
-  int x1 = v1.pos.x;
-  int y0 = v0.pos.y;
-  int y1 = v1.pos.y;
-  auto steep = false;
-  if (std::abs(y1 - y0) > std::abs(x1 - x0)) {
-    steep = true;
-    std::swap(x0, y0);
-    std::swap(x1, y1);
-  }
-  if (x0 > x1) {
-    std::swap(x0, x1);
-    std::swap(y0, y1);
-  }
-
-  int y = y0;
-  int dx = x1 - x0;
-  int dy = std::abs(y1 - y0);
-  auto diff = 2 * dy - dx;
-  int y_growth = y1 > y0 ? 1 : -1;
-
-  if (steep)
-    frags.emplace_back(std::make_unique<Fragment>(Vec3(y0, x0, v0.pos.z)));
-  else
-    frags.emplace_back(std::make_unique<Fragment>(Vec3(x0, y0, v0.pos.z)));
-
-  if (diff > 0) {
-    y += y_growth;
-    diff -= 2 * dx;
-  }
-  for (int x = x0 + 1; x <= x1; ++x) {
-    // TODO: Interpolate later.
-    if (steep)
-      frags.emplace_back(std::make_unique<Fragment>(Vec3(y, x, v0.pos.z)));
-    else
-      frags.emplace_back(std::make_unique<Fragment>(Vec3(x, y, v0.pos.z)));
-
-    diff += 2 * dy;
-    if (diff > 0) {
-      y += y_growth;
-      diff -= 2 * dx;
-    }
-  }
-}
-
 float getNearestPixelCenter(float x) {
   return floor(x) + 0.5;
 }
 
-std::unique_ptr<const Fragment> interpolate(const Triangle &tri,
-    float x, float y,
-    float w0, float w1, float w2, unsigned attr_count) {
-  constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
-  constexpr auto f_offset = sizeof(Fragment::coord) / sizeof(float);
-  auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
-  auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
-
-  const float *in[] = {reinterpret_cast<const float*>(tri.v[0]) + v_offset,
-                       reinterpret_cast<const float*>(tri.v[1]) + v_offset,
-                       reinterpret_cast<const float*>(tri.v[2]) + v_offset};
-  auto out = std::make_unique<float[]>(f_offset + attr_count);
-
-  out[0] = x;
-  out[1] = y;
-  out[2] = z_s;
-  for (auto i = 0u; i < attr_count; ++i) {
-    out[i + f_offset] = (*(in[0] + i) * w0 * tri.v[0]->pos.w +
-                         *(in[1] + i) * w1 * tri.v[1]->pos.w +
-                         *(in[2] + i) * w2 * tri.v[2]->pos.w) / z_v;
-  }
-  return std::unique_ptr<const Fragment>(
-      reinterpret_cast<Fragment*>(out.release()));
-}
-
-// Top-left filling convention.
-void rasterizeTriHalfSpace(const Triangle &tri, unsigned attr_count,
-    std::vector<std::unique_ptr<const Fragment>> &frags) {
-  auto x0 = tri.v[0]->pos.x;
-  auto x1 = tri.v[1]->pos.x;
-  auto x2 = tri.v[2]->pos.x;
-  auto y0 = tri.v[0]->pos.y;
-  auto y1 = tri.v[1]->pos.y;
-  auto y2 = tri.v[2]->pos.y;
-  auto aabb_x = std::minmax({x0, x1, x2});
-  auto aabb_y = std::minmax({y0, y1, y2});
-  auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
-  auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
-  auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
-
-  /*
-  auto dx10 = x1 - x0;
-  auto dx21 = x2 - x1;
-  auto dx02 = x0 - x2;
-  auto dy10 = y1 - y0;
-  auto dy21 = y2 - y1;
-  auto dy02 = y0 - y2;
-  */
-
-  for (auto y = getNearestPixelCenter(aabb_y.first);
-       y <= getNearestPixelCenter(aabb_y.second); ++y) {
-    for (auto x = getNearestPixelCenter(aabb_x.first);
-         x <= getNearestPixelCenter(aabb_x.second); ++x) {
-      auto e0 = (x2 - x1) * (y - y1) - (x - x1) * (y2 - y1);
-      auto e1 = (x0 - x2) * (y - y2) - (x - x2) * (y0 - y2);
-      auto e2 = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0);
-
-      if ((e0 > 0 || (e0 == 0 && e0_top_left)) &&
-          (e1 > 0 || (e1 == 0 && e1_top_left)) &&
-          (e2 > 0 || (e2 == 0 && e2_top_left))) {
-        auto w0 = e0 / tri.darea;
-        auto w1 = e1 / tri.darea;
-        auto w2 = 1 - w0 - w1;
-
-        frags.emplace_back(interpolate(tri, x, y, w0, w1, w2, attr_count));
-      }
-    }
-  }
+float lerp(float a, float b, float w) {
+  return (1.f - w) * a + w * b;
 }
 
 } // namespace
@@ -145,8 +30,7 @@ void Pipeline::draw() {
   triangles = clipTriangles(triangles);
   convertToScreenSpace(triangles, fb_->getWidth(), fb_->getHeight());
   triangles = cullBackFacing(triangles);
-  auto fragments = rasterize(triangles);
-  invokeFragmentShader(fragments);
+  rasterize(triangles);
 }
 
 std::vector<VertexH*> Pipeline::invokeVertexShader() {
@@ -232,34 +116,180 @@ void Pipeline::convertToScreenSpace(std::vector<Triangle> &triangles,
   }
 }
 
-std::vector<std::unique_ptr<const Fragment>> Pipeline::rasterize(
-    const std::vector<Triangle> &triangles) {
-  std::vector<std::unique_ptr<const Fragment>> frags;
+void Pipeline::rasterize(const std::vector<Triangle> &triangles) {
   for (auto &tri : triangles) {
     if (wireframe_) {
-      rasterizeLine(frags, *tri.v[0], *tri.v[1]);
-      rasterizeLine(frags, *tri.v[0], *tri.v[2]);
-      rasterizeLine(frags, *tri.v[1], *tri.v[2]);
+      rasterizeLine(*tri.v[0], *tri.v[1]);
+      rasterizeLine(*tri.v[0], *tri.v[2]);
+      rasterizeLine(*tri.v[1], *tri.v[2]);
     }
     else {
-      rasterizeTriHalfSpace(tri, prog_->attr_count, frags);
+      rasterizeTriHalfSpace(tri);
     }
   }
-  return frags;
 }
 
-void Pipeline::invokeFragmentShader(
-    const std::vector<std::unique_ptr<const Fragment>> &fragments) {
-  for (auto &frag : fragments) {
-    auto &depth = fb_->getDepth(frag->coord.x, frag->coord.y);
-    // Early z test.
-    if (frag->coord.z >= depth)
-      continue;
-
-    prog_->fs(*frag.get(), uniform_,
-                 fb_->getColor(frag->coord.x, frag->coord.y));
-    depth = frag->coord.z;
+// Bresenham's line algorithm.
+void Pipeline::rasterizeLine(const VertexH &v0, const VertexH &v1) {
+  int x0 = v0.pos.x;
+  int x1 = v1.pos.x;
+  int y0 = v0.pos.y;
+  int y1 = v1.pos.y;
+  auto from = &v0;
+  auto to = &v1;
+  auto steep = false;
+  if (std::abs(y1 - y0) > std::abs(x1 - x0)) {
+    steep = true;
+    std::swap(x0, y0);
+    std::swap(x1, y1);
   }
+  if (x0 > x1) {
+    std::swap(from, to);
+    std::swap(x0, x1);
+    std::swap(y0, y1);
+  }
+
+  int y = y0;
+  int dx = x1 - x0;
+  int dy = std::abs(y1 - y0);
+  auto diff = 2 * dy - dx;
+  int y_growth = y1 > y0 ? 1 : -1;
+  auto w_step = 1.f / dx;
+  auto w = 0.f;
+
+  if (steep)
+    fill(*from, *to, y0, x0, w);
+  else
+    fill(*from, *to, x0, y0, w);
+
+  if (diff > 0) {
+    y += y_growth;
+    diff -= 2 * dx;
+  }
+  for (int x = x0 + 1; x <= x1; ++x) {
+    w += w_step;
+    if (steep)
+      fill(*from, *to, y, x, w);
+    else
+      fill(*from, *to, x, y, w);
+
+    diff += 2 * dy;
+    if (diff > 0) {
+      y += y_growth;
+      diff -= 2 * dx;
+    }
+  }
+}
+
+// Top-left filling convention.
+void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
+  auto x0 = tri.v[0]->pos.x;
+  auto x1 = tri.v[1]->pos.x;
+  auto x2 = tri.v[2]->pos.x;
+  auto y0 = tri.v[0]->pos.y;
+  auto y1 = tri.v[1]->pos.y;
+  auto y2 = tri.v[2]->pos.y;
+  auto aabb_x = std::minmax({x0, x1, x2});
+  auto aabb_y = std::minmax({y0, y1, y2});
+  auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
+  auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
+  auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
+
+  /*
+  auto dx10 = x1 - x0;
+  auto dx21 = x2 - x1;
+  auto dx02 = x0 - x2;
+  auto dy10 = y1 - y0;
+  auto dy21 = y2 - y1;
+  auto dy02 = y0 - y2;
+  */
+
+  for (auto y = getNearestPixelCenter(aabb_y.first);
+       y <= getNearestPixelCenter(aabb_y.second); ++y) {
+    for (auto x = getNearestPixelCenter(aabb_x.first);
+         x <= getNearestPixelCenter(aabb_x.second); ++x) {
+      auto e0 = (x2 - x1) * (y - y1) - (x - x1) * (y2 - y1);
+      auto e1 = (x0 - x2) * (y - y2) - (x - x2) * (y0 - y2);
+      auto e2 = (x1 - x0) * (y - y0) - (x - x0) * (y1 - y0);
+
+      if ((e0 > 0 || (e0 == 0 && e0_top_left)) &&
+          (e1 > 0 || (e1 == 0 && e1_top_left)) &&
+          (e2 > 0 || (e2 == 0 && e2_top_left))) {
+        auto w0 = e0 / tri.darea;
+        auto w1 = e1 / tri.darea;
+        auto w2 = 1 - w0 - w1;
+
+        fill(tri, x, y, w0, w1, w2);
+      }
+    }
+  }
+}
+
+void Pipeline::fill(const VertexH &v1, const VertexH &v2,
+                    float x, float y, float w) {
+  float storage[max_fragment_size];
+  auto frag = reinterpret_cast<Fragment*>(&storage);
+  interpolate(v1, v2, x, y, w, frag);
+  invokeFragmentShader(*frag);
+}
+
+void Pipeline::fill(const Triangle &tri, float x, float y,
+                    float w0, float w1, float w2) {
+  float storage[max_fragment_size];
+  auto frag = reinterpret_cast<Fragment*>(&storage);
+  interpolate(tri, x, y, w0, w1, w2, frag);
+  invokeFragmentShader(*frag);
+}
+
+void Pipeline::interpolate(const VertexH &v1, const VertexH &v2,
+                           float x, float y, float w, Fragment *frag) {
+  constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
+  auto z_s = lerp(v1.pos.z, v2.pos.z, w);
+  auto z_v = lerp(v1.pos.w, v2.pos.w, w);
+
+  const float *in[] = {reinterpret_cast<const float*>(&v1) + v_offset,
+                       reinterpret_cast<const float*>(&v2) + v_offset};
+  frag->coord.x = x;
+  frag->coord.y = y;
+  frag->coord.z = z_s;
+  frag += 1;
+  auto out = reinterpret_cast<float*>(frag);
+
+  for (auto i = 0u; i < prog_->attr_count; ++i) {
+    out[i] = lerp(*(in[0] + i) * v1.pos.w, *(in[1] + i) * v2.pos.w, w) / z_v;
+  }
+}
+
+void Pipeline::interpolate(const Triangle &tri, float x, float y,
+                           float w0, float w1, float w2, Fragment *frag) {
+  constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
+  auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
+  auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
+
+  const float *in[] = {reinterpret_cast<const float*>(tri.v[0]) + v_offset,
+                       reinterpret_cast<const float*>(tri.v[1]) + v_offset,
+                       reinterpret_cast<const float*>(tri.v[2]) + v_offset};
+  frag->coord.x = x;
+  frag->coord.y = y;
+  frag->coord.z = z_s;
+  frag += 1;
+  auto out = reinterpret_cast<float*>(frag);
+
+  for (auto i = 0u; i < prog_->attr_count; ++i) {
+    out[i] = (*(in[0] + i) * w0 * tri.v[0]->pos.w +
+              *(in[1] + i) * w1 * tri.v[1]->pos.w +
+              *(in[2] + i) * w2 * tri.v[2]->pos.w) / z_v;
+  }
+}
+
+void Pipeline::invokeFragmentShader(const Fragment &frag) {
+  auto &depth = fb_->getDepth(frag.coord.x, frag.coord.y);
+  // Early z test.
+  if (frag.coord.z >= depth)
+    return;
+
+  prog_->fs(frag, uniform_, fb_->getColor(frag.coord.x, frag.coord.y));
+  depth = frag.coord.z;
 }
 
 } // namespace renderer
