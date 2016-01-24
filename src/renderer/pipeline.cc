@@ -45,9 +45,9 @@ void rasterizeLine(std::vector<std::unique_ptr<const Fragment>> &frags,
   for (int x = x0 + 1; x <= x1; ++x) {
     // TODO: Interpolate later.
     if (steep)
-      frags.emplace_back(std::make_unique<Fragment>(Vec3(y0, x0, v0.pos.z)));
+      frags.emplace_back(std::make_unique<Fragment>(Vec3(y, x, v0.pos.z)));
     else
-      frags.emplace_back(std::make_unique<Fragment>(Vec3(x0, y0, v0.pos.z)));
+      frags.emplace_back(std::make_unique<Fragment>(Vec3(x, y, v0.pos.z)));
 
     diff += 2 * dy;
     if (diff > 0) {
