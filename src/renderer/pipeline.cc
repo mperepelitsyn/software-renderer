@@ -16,6 +16,17 @@ float lerp(float a, float b, float w) {
   return (1.f - w) * a + w * b;
 }
 
+void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
+  float *in[] = {reinterpret_cast<float*>(tri.v[0] + 1),
+                 reinterpret_cast<float*>(tri.v[1] + 1),
+                 reinterpret_cast<float*>(tri.v[2] + 1)};
+  for (auto i = 0u; i < attr_count; ++i) {
+    *(in[0] + i) *= tri.v[0]->pos.w;
+    *(in[1] + i) = *(in[1] + i) * tri.v[1]->pos.w - *(in[0] + i);
+    *(in[2] + i) = *(in[2] + i) * tri.v[2]->pos.w - *(in[0] + i);
+  }
+}
+
 } // namespace
 
 void Pipeline::draw() {
@@ -195,6 +206,8 @@ void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
   auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
   auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
 
+  precomputeAttrs(tri, prog_->attr_count);
+
   /*
   auto dx10 = x1 - x0;
   auto dx21 = x2 - x1;
@@ -243,12 +256,11 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
 
 void Pipeline::interpolate(const VertexH &v1, const VertexH &v2,
                            float x, float y, float w, Fragment *frag) {
-  constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
   auto z_s = lerp(v1.pos.z, v2.pos.z, w);
   auto z_v = lerp(v1.pos.w, v2.pos.w, w);
 
-  const float *in[] = {reinterpret_cast<const float*>(&v1) + v_offset,
-                       reinterpret_cast<const float*>(&v2) + v_offset};
+  const float *in[] = {reinterpret_cast<const float*>(&v1 + 1),
+                       reinterpret_cast<const float*>(&v2 + 1)};
   frag->coord.x = x;
   frag->coord.y = y;
   frag->coord.z = z_s;
@@ -262,13 +274,12 @@ void Pipeline::interpolate(const VertexH &v1, const VertexH &v2,
 
 void Pipeline::interpolate(const Triangle &tri, float x, float y,
                            float w0, float w1, float w2, Fragment *frag) {
-  constexpr auto v_offset = sizeof(VertexH::pos) / sizeof(float);
   auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
   auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
 
-  const float *in[] = {reinterpret_cast<const float*>(tri.v[0]) + v_offset,
-                       reinterpret_cast<const float*>(tri.v[1]) + v_offset,
-                       reinterpret_cast<const float*>(tri.v[2]) + v_offset};
+  const float *in[] = {reinterpret_cast<float*>(tri.v[0] + 1),
+                       reinterpret_cast<float*>(tri.v[1] + 1),
+                       reinterpret_cast<float*>(tri.v[2] + 1)};
   frag->coord.x = x;
   frag->coord.y = y;
   frag->coord.z = z_s;
@@ -276,9 +287,7 @@ void Pipeline::interpolate(const Triangle &tri, float x, float y,
   auto out = reinterpret_cast<float*>(frag);
 
   for (auto i = 0u; i < prog_->attr_count; ++i) {
-    out[i] = (*(in[0] + i) * w0 * tri.v[0]->pos.w +
-              *(in[1] + i) * w1 * tri.v[1]->pos.w +
-              *(in[2] + i) * w2 * tri.v[2]->pos.w) / z_v;
+    out[i] = (*(in[0] + i) + *(in[1] + i) * w1 + *(in[2] + i) * w2) / z_v;
   }
 }
 
