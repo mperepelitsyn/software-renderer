@@ -84,7 +84,7 @@ std::vector<Triangle> Pipeline::clipTriangles(
   };
 
   for (auto &tri : triangles) {
-    if (std::any_of(std::cbegin(tri.v), std::cend(tri.v), outside_clip_vol))
+    if (std::all_of(std::cbegin(tri.v), std::cend(tri.v), outside_clip_vol))
       continue;
     out.emplace_back(tri);
   }
@@ -213,8 +213,14 @@ void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
   auto y0 = tri.v[0]->pos.y;
   auto y1 = tri.v[1]->pos.y;
   auto y2 = tri.v[2]->pos.y;
+
   auto aabb_x = std::minmax({x0, x1, x2});
   auto aabb_y = std::minmax({y0, y1, y2});
+  aabb_x = {std::max(0.f, aabb_x.first),
+            std::min(static_cast<float>(fb_->getWidth() - 1), aabb_x.second)};
+  aabb_y = {std::max(0.f, aabb_y.first),
+            std::min(static_cast<float>(fb_->getHeight() - 1), aabb_y.second)};
+
   auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
   auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
   auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);

@@ -42,7 +42,7 @@ struct MyProgram : Program {
 
 } // namespace
 
-class TriangleApp : public app::App {
+class ClippingApp : public app::App {
  public:
   using App::App;
 
@@ -52,7 +52,7 @@ class TriangleApp : public app::App {
     ctx_.setProgram(&prog_);
     ctx_.setUniform(&uniform_);
 
-    auto view = createViewMatrix({0.f, 0.f, 2.f}, {0.f, 0.f, 0.f},
+    auto view = createViewMatrix({0.f, 0.f, 1.4f}, {0.f, 0.f, 0.f},
                                  {0.f, 1.f, 0.f});
     auto proj = createPerspProjMatrix(70.0_deg,
         static_cast<float>(width_) / height_, 0.01f, 100.f);
@@ -62,7 +62,7 @@ class TriangleApp : public app::App {
   void renderLoop(double time, double) override {
     fb_.clear();
 
-    auto model = rotateZ(time) * translate({0.3f, 0.f, 0.f}) *
+    auto model = rotateZ(time) * translate({0.7f, 0.f, 0.f}) *
                  rotateZ(-time * 1.2f);
     uniform_.mvp = proj_view_ * model;
 
@@ -81,4 +81,4 @@ class TriangleApp : public app::App {
   MyProgram prog_;
 };
 
-DEFINE_AND_CALL_APP(TriangleApp, 640, 480, Triangle)
+DEFINE_AND_CALL_APP(ClippingApp, 1200, 900, Clipping)
