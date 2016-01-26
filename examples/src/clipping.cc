@@ -31,12 +31,12 @@ struct MyProgram : Program {
     vout.color = vin.color;
   }
 
-  static void fragmentShader(const Fragment &in, const void *, Vec4 &out) {
+  static void fragmentShader(const Fragment &in, const void *, Vec3 *out) {
     auto &fin = static_cast<const MyFragment&>(in);
-    out = Vec4(fin.color, 1.f);
+    *out = fin.color;
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 3} {}
+  MyProgram() : Program{vertexShader, fragmentShader, 3, 1} {}
 };
 
 

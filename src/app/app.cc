@@ -62,7 +62,7 @@ GLuint linkProgram(const GLchar *vs_source, const GLchar *fs_source) {
 } // namespace
 
 App::App(unsigned w, unsigned h, const std::string &name)
-  : fb_{w, h}, width_{w}, height_{h}, name_{name},
+  : fb_{w, h, 1}, color_buf_{w, h}, width_{w}, height_{h}, name_{name},
     fps_counter_{name_, 0.25} {
   glfwSetErrorCallback(errorCallback);
 
@@ -82,12 +82,13 @@ App::App(unsigned w, unsigned h, const std::string &name)
   glewInit();
 
   glCreateTextures(GL_TEXTURE_2D, 1, &texture_);
-  glTextureStorage2D(texture_, 1, GL_RGBA32F, width_, height_);
+  glTextureStorage2D(texture_, 1, GL_RGB32F, width_, height_);
   glBindTextureUnit(0, texture_);
   program_ = linkProgram(vs_source, fs_source);
   glUseProgram(program_);
 
-  ctx_.setFrameBuffer(fb_);
+  fb_.attachColor(0, &color_buf_);
+  ctx_.setFrameBuffer(&fb_);
   fps_counter_.setWindow(window_);
 }
 
@@ -109,8 +110,8 @@ void App::render() {
     renderLoop(time, delta);
 
     glClear(GL_COLOR_BUFFER_BIT);
-    glTextureSubImage2D(texture_, 0, 0, 0, width_, height_, GL_RGBA, GL_FLOAT,
-                        fb_.getColorBuffer());
+    glTextureSubImage2D(texture_, 0, 0, 0, width_, height_, GL_RGB, GL_FLOAT,
+                        color_buf_.getRawBuffer());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window_);
     glfwPollEvents();

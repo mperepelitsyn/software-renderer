@@ -39,7 +39,7 @@ struct MyProgram : Program {
     vout.tc = vin.tc;
   }
 
-  static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
+  static void fragmentShader(const Fragment &in, const void *u, Vec3 *out) {
     const static Vec3 to_light = normalize({0.5f, 1.f, 1.f});
     const static Vec3 ambient_albedo{.1f, .1f, .1f};
     const static Vec3 diffuse_albedo{.7f, .7f, .7f};
@@ -56,10 +56,10 @@ struct MyProgram : Program {
     auto specular = specular_albedo * std::pow(std::max(dot(
             reflect(to_light * -1.f, n), to_eye), 0.f), spec_power);
 
-    out = {ambient + diffuse + specular, 1.f};
+    *out = {ambient + diffuse + specular};
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 8} {}
+  MyProgram() : Program{vertexShader, fragmentShader, 8, 1} {}
 };
 
 auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {

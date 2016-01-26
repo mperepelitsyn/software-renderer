@@ -31,12 +31,13 @@ struct VertexBuffer {
 };
 
 using VertexShader = void(*)(const Vertex &in, const void *u, VertexH &out);
-using FragmentShader = void(*)(const Fragment &in, const void *u, Vec4 &out);
+using FragmentShader = void(*)(const Fragment &in, const void *u, Vec3 *out);
 
 struct Program {
   VertexShader vs;
   FragmentShader fs;
   unsigned attr_count;
+  unsigned color_count;
 };
 
 struct Triangle {
@@ -49,7 +50,8 @@ class Pipeline {
   enum Culling { NONE, FRONT_FACING, BACK_FACING };
 
   void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
-  void setFrameBuffer(FrameBuffer &fb) { fb_ = &fb; }
+  void setFrameBuffer(FrameBuffer *fb) { fb_ = fb; }
+  auto getFrameBuffer() { return fb_; }
   void setWireframeMode(bool mode) { wireframe_ = mode; }
   void setUniform(const void *u) { uniform_ = u; }
   void setProgram(const Program *program) { prog_ = program; }
@@ -57,6 +59,7 @@ class Pipeline {
   void draw();
 
   constexpr static unsigned max_fragment_size{32}; // In floats.
+  constexpr static unsigned max_color_outputs{4};
 
  private:
   std::vector<VertexH*> invokeVertexShader();

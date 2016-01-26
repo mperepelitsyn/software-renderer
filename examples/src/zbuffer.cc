@@ -33,7 +33,7 @@ struct MyProgram : Program {
     vout.pos_v = {pv.x, pv.y, pv.z};
   }
 
-  static void fragmentShader(const Fragment &in, const void *, Vec4 &out) {
+  static void fragmentShader(const Fragment &in, const void *, Vec3 *out) {
     const static Vec3 to_light = normalize({0.5f, 1.f, 1.f});
     const static Vec3 ambient_albedo{.1f, .1f, .1f};
     const static Vec3 diffuse_albedo{.8f, .8f, .8f};
@@ -47,10 +47,10 @@ struct MyProgram : Program {
     auto specular = specular_albedo * std::pow(std::max(dot(
             reflect(to_light * -1.f, n), to_eye), 0.f), spec_power);
 
-    out = {ambient_albedo + diffuse + specular, 1.f};
+    *out = {ambient_albedo + diffuse + specular};
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 6} {}
+  MyProgram() : Program{vertexShader, fragmentShader, 6, 1} {}
 };
 
 } // namespace

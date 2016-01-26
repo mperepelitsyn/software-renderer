@@ -15,11 +15,11 @@ struct MyProgram : Program {
     out.pos = uin->mvp * Vec4{in.pos, 1.f};
   }
 
-  static void fragmentShader(const Fragment &, const void *, Vec4 &out) {
-    out = {1.f, 1.f, 1.f, 1.f};
+  static void fragmentShader(const Fragment &, const void *, Vec3 *out) {
+    *out = {1.f, 1.f, 1.f};
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 0} {}
+  MyProgram() : Program{vertexShader, fragmentShader, 0, 1} {}
 };
 
 

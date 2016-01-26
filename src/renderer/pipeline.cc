@@ -328,7 +328,9 @@ void Pipeline::invokeFragmentShader(const Fragment &frag) {
   if (frag.coord.z >= depth)
     return;
 
-  prog_->fs(frag, uniform_, fb_->getColor(frag.coord.x, frag.coord.y));
+  Vec3 colors[max_color_outputs];
+  prog_->fs(frag, uniform_, colors);
+  fb_->setPixel(frag.coord.x, frag.coord.y, colors, prog_->color_count);
   depth = frag.coord.z;
 }
 
