@@ -90,7 +90,21 @@ struct DeferredStage2 : Program {
 
 class MRTApp : public App {
  public:
-  using App::App;
+  MRTApp(unsigned w, unsigned h, const std::string &name)
+    : App{w, h, name},
+      model_{parseObj("../assets/stormtrooper.obj")},
+      quad_{
+        {{-1.f, -1.f, 0.f}}, {{1.f, -1.f, 0.5f}}, {{-1.f, 1.f, 0.5f}},
+        {{-1.f, 1.f, 0.5f}}, {{1.f, -1.f, 0.5f}}, {{1.f, 1.f, 0.5f}}
+      },
+      vb_model_{&model_[0], model_.size(), sizeof(model_[0])},
+      vb_quad_{&quad_[0], quad_.size(), sizeof(quad_[0])},
+      uniform_{{}, {},
+        {1024, 1024, loadTGA("../assets/stormtrooper_d.tga")},
+        {width, height}, {width, height}, {width, height}
+      },
+      gbuffer_{width, height, 3},
+      backbuffer_{ctx_.getFrameBuffer()} {}
 
  private:
   void startup() override {
@@ -133,22 +147,15 @@ class MRTApp : public App {
     ctx_.draw();
   }
 
-  std::vector<ObjVertex> model_{parseObj("../assets/stormtrooper.obj")};
-  std::vector<Vertex> quad_{
-    {{-1.f, -1.f, 0.f}}, {{1.f, -1.f, 0.5f}}, {{-1.f, 1.f, 0.5f}},
-    {{-1.f, 1.f, 0.5f}}, {{1.f, -1.f, 0.5f}}, {{1.f, 1.f, 0.5f}}
-  };
-  VertexBuffer vb_model_{&model_[0], static_cast<unsigned>(model_.size()),
-                         sizeof(model_[0])};
-  VertexBuffer vb_quad_{&quad_[0], static_cast<unsigned>(quad_.size()),
-                        sizeof(quad_[0])};
+  std::vector<ObjVertex> model_;
+  std::vector<Vertex> quad_;
+  VertexBuffer vb_model_;
+  VertexBuffer vb_quad_;
+  Uniform uniform_;
   DeferredStage1 stage1_;
   DeferredStage2 stage2_;
-  Uniform uniform_{{}, {},
-    {1024, 1024, loadTGA("../assets/stormtrooper_d.tga")},
-    {width, height}, {width, height}, {width, height}};
-  FrameBuffer gbuffer_{width, height, 3};
-  FrameBuffer *backbuffer_{ctx_.getFrameBuffer()};
+  FrameBuffer gbuffer_;
+  FrameBuffer *backbuffer_;
   Mat4 proj_;
 };
 

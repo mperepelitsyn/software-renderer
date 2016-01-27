@@ -26,7 +26,7 @@ struct Fragment {
 
 struct VertexBuffer {
   const void *ptr;
-  unsigned count;
+  size_t count;
   unsigned stride;
 };
 

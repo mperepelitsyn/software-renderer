@@ -83,7 +83,11 @@ auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {
 
 class TexturingApp : public app::App {
  public:
-  using App::App;
+  TexturingApp(unsigned w, unsigned h, const std::string &name)
+    : App{w, h, name},
+      vertices_{app::parseObj("../assets/cube.obj")},
+      vb_{&vertices_[0], vertices_.size(), sizeof(vertices_[0])},
+      uniform_{{}, {}, {512, 512, genCheckerTexture(512, 512, 64)}} {}
 
  private:
   void startup() override {
@@ -108,12 +112,10 @@ class TexturingApp : public app::App {
     ctx_.draw();
   }
 
-  std::vector<app::ObjVertex> vertices_{app::parseObj("../assets/cube.obj")};
-  VertexBuffer vb_{&vertices_[0], static_cast<unsigned>(vertices_.size()),
-                   sizeof(vertices_[0])};
+  std::vector<app::ObjVertex> vertices_;
+  VertexBuffer vb_;
   MyProgram prog_;
-  MyProgram::Uniform uniform_{{}, {}, {512, 512,
-                              genCheckerTexture(512, 512, 64)}};
+  MyProgram::Uniform uniform_;
   Mat4 view_;
   Mat4 proj_view_;
 };
