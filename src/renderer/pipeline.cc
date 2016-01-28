@@ -271,67 +271,63 @@ void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
 
 void Pipeline::fill(const VertexH &v1, const VertexH &v2,
                     float x, float y, float w) {
-  float storage[max_fragment_size];
-  auto frag = reinterpret_cast<Fragment*>(&storage);
-  interpolate(v1, v2, x, y, w, frag);
-  invokeFragmentShader(*frag);
-}
-
-void Pipeline::fill(const Triangle &tri, float x, float y,
-                    float w0, float w1, float w2) {
-  float storage[max_fragment_size];
-  auto frag = reinterpret_cast<Fragment*>(&storage);
-  interpolate(tri, x, y, w0, w1, w2, frag);
-  invokeFragmentShader(*frag);
-}
-
-void Pipeline::interpolate(const VertexH &v1, const VertexH &v2,
-                           float x, float y, float w, Fragment *frag) {
   auto z_s = lerp(v1.pos.z, v2.pos.z, w);
+
+  // Early Z-test.
+  auto &depth = fb_->getDepth(x, y);
+  if (z_s >= depth)
+    return;
+  depth = z_s;
+
   auto z_v = lerp(v1.pos.w, v2.pos.w, w);
 
+  float storage[max_fragment_size];
+  auto frag = reinterpret_cast<Fragment*>(storage);
   const float *in[] = {reinterpret_cast<const float*>(&v1 + 1),
                        reinterpret_cast<const float*>(&v2 + 1)};
   frag->coord.x = x;
   frag->coord.y = y;
   frag->coord.z = z_s;
-  frag += 1;
-  auto out = reinterpret_cast<float*>(frag);
+  auto out = reinterpret_cast<float*>(frag + 1);
 
   for (auto i = 0u; i < prog_->attr_count; ++i) {
     out[i] = lerp(*(in[0] + i) * v1.pos.w, *(in[1] + i) * v2.pos.w, w) / z_v;
   }
+  invokeFragmentShader(*frag);
 }
 
-void Pipeline::interpolate(const Triangle &tri, float x, float y,
-                           float w0, float w1, float w2, Fragment *frag) {
+void Pipeline::fill(const Triangle &tri, float x, float y,
+                    float w0, float w1, float w2) {
   auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
+
+  // Early Z-test.
+  auto &depth = fb_->getDepth(x, y);
+  if (z_s >= depth)
+    return;
+  depth = z_s;
+
   auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
 
+  float storage[max_fragment_size];
+  auto frag = reinterpret_cast<Fragment*>(storage);
   const float *in[] = {reinterpret_cast<float*>(tri.v[0] + 1),
                        reinterpret_cast<float*>(tri.v[1] + 1),
                        reinterpret_cast<float*>(tri.v[2] + 1)};
   frag->coord.x = x;
   frag->coord.y = y;
   frag->coord.z = z_s;
-  frag += 1;
-  auto out = reinterpret_cast<float*>(frag);
+  auto out = reinterpret_cast<float*>(frag + 1);
 
   for (auto i = 0u; i < prog_->attr_count; ++i) {
     out[i] = (*(in[0] + i) + *(in[1] + i) * w1 + *(in[2] + i) * w2) / z_v;
   }
+  invokeFragmentShader(*frag);
 }
 
 void Pipeline::invokeFragmentShader(const Fragment &frag) {
-  auto &depth = fb_->getDepth(frag.coord.x, frag.coord.y);
-  // Early z test.
-  if (frag.coord.z >= depth)
-    return;
-
   Vec3 colors[max_color_outputs];
   prog_->fs(frag, uniform_, colors);
   fb_->setPixel(frag.coord.x, frag.coord.y, colors, prog_->color_count);
-  depth = frag.coord.z;
 }
 
 } // namespace renderer

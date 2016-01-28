@@ -74,10 +74,6 @@ class Pipeline {
   void fill(const VertexH &v1, const VertexH &v2, float x, float y,float w);
   void fill(const Triangle &tri, float x, float y,
             float w0, float w1, float w2);
-  void interpolate(const VertexH &v1, const VertexH &v2,
-                   float x, float y,float w, Fragment *frag);
-  void interpolate(const Triangle &tri, float x, float y,
-                   float w0, float w1, float w2, Fragment *frag);
   void invokeFragmentShader(const Fragment &frag);
 
   Arena arena_;
