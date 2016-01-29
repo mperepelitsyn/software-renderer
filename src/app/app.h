@@ -36,7 +36,6 @@ class App {
 
   renderer::Pipeline ctx_;
   renderer::FrameBuffer fb_;
-  renderer::Texture color_buf_;
   unsigned width_, height_;
 
  private:

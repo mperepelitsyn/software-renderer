@@ -32,7 +32,7 @@ struct Pixel24 {
 
 namespace app {
 
-std::vector<renderer::Vec3> loadTGA(const std::string &path) {
+std::vector<renderer::UNorm> loadTGA(const std::string &path) {
   std::ifstream ifs(path, std::ios::binary);
   if (!ifs.good())
     throw Error{"failed to open TGA '" + path + '\''};
@@ -40,13 +40,12 @@ std::vector<renderer::Vec3> loadTGA(const std::string &path) {
   TGAHeader header;
   ifs.read(reinterpret_cast<char*>(&header), sizeof header);
   unsigned size = header.width * header.height;
-  std::vector<renderer::Vec3> out{size};
-  constexpr float div = 1.f / 255.f;
+  std::vector<renderer::UNorm> out(size);
 
   for (auto i = 0u; i < size; ++i) {
     Pixel24 pix;
     ifs.read(reinterpret_cast<char*>(&pix), sizeof pix);
-    out[i] = {pix.r * div, pix.g * div, pix.b * div};
+    out[i] = {pix.r, pix.g, pix.b, 255};
   }
 
   return out;

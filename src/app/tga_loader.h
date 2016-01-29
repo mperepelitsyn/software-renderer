@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
-#include "renderer/vector.h"
+#include "renderer/texture.h"
 
 namespace app {
 
-std::vector<renderer::Vec3> loadTGA(const std::string &path);
+std::vector<renderer::UNorm> loadTGA(const std::string &path);
 
 } // namespace app

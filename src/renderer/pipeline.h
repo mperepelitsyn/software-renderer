@@ -31,13 +31,12 @@ struct VertexBuffer {
 };
 
 using VertexShader = void(*)(const Vertex &in, const void *u, VertexH &out);
-using FragmentShader = void(*)(const Fragment &in, const void *u, Vec3 *out);
+using FragmentShader = void(*)(const Fragment &in, const void *u, Vec4 &out);
 
 struct Program {
   VertexShader vs;
   FragmentShader fs;
   unsigned attr_count;
-  unsigned color_count;
 };
 
 struct Triangle {

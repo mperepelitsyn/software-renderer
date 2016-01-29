@@ -274,10 +274,8 @@ void Pipeline::fill(const VertexH &v1, const VertexH &v2,
   auto z_s = lerp(v1.pos.z, v2.pos.z, w);
 
   // Early Z-test.
-  auto &depth = fb_->getDepth(x, y);
-  if (z_s >= depth)
+  if (z_s >= fb_->getDepth(x, y))
     return;
-  depth = z_s;
 
   auto z_v = lerp(v1.pos.w, v2.pos.w, w);
 
@@ -301,10 +299,8 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
   auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
 
   // Early Z-test.
-  auto &depth = fb_->getDepth(x, y);
-  if (z_s >= depth)
+  if (z_s >= fb_->getDepth(x, y))
     return;
-  depth = z_s;
 
   auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
 
@@ -325,9 +321,9 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
 }
 
 void Pipeline::invokeFragmentShader(const Fragment &frag) {
-  Vec3 colors[max_color_outputs];
-  prog_->fs(frag, uniform_, colors);
-  fb_->setPixel(frag.coord.x, frag.coord.y, colors, prog_->color_count);
+  Vec4 color;
+  prog_->fs(frag, uniform_, color);
+  fb_->setPixel(frag.coord.x, frag.coord.y, color, frag.coord.z);
 }
 
 } // namespace renderer

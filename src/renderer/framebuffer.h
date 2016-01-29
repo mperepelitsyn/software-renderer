@@ -1,29 +1,36 @@
 #pragma once
 
-#include <vector>
-
 #include "renderer/texture.h"
 
 namespace renderer {
 
 class FrameBuffer {
  public:
-  FrameBuffer(unsigned width, unsigned height, unsigned color_count)
-    : colors_{color_count}, depth_(width * height),
-      width_{width}, height_{height} {}
+  FrameBuffer(unsigned width, unsigned height)
+    : color_{width, height}, depth_{width, height}, color_write_{true} {}
 
-  void clear();
-  void attachColor(unsigned slot, Texture *tex) { colors_.at(slot) = tex; }
-  void setPixel(unsigned x, unsigned y, const Vec3 *color, unsigned count);
-  float &getDepth(unsigned x, unsigned y) { return depth_[y * width_ + x]; }
-  unsigned getWidth() const { return width_; }
-  unsigned getHeight() const { return height_; }
+  void clear() {
+    color_.clear();
+    depth_.fill(1.f);
+  }
+
+  void setPixel(unsigned x, unsigned y, const Vec4 &color, float depth) {
+    if (color_write_)
+      color_.setTexel(x, y, color);
+    depth_.setTexel(x, y, depth);
+  }
+
+  void setColorWrite(bool write) { color_write_ = write; }
+  auto &getColorTexture() const { return color_; }
+  auto &getDepthTexture() const { return depth_; }
+  auto getDepth(unsigned x, unsigned y) { return depth_.fetchTexel(x, y); }
+  auto getWidth() const { return color_.getWidth(); }
+  auto getHeight() const { return color_.getHeight(); }
 
  private:
-  std::vector<Texture*> colors_;
-  std::vector<float> depth_;
-  unsigned width_;
-  unsigned height_;
+  Texture<UNorm> color_;
+  Texture<float> depth_;
+  bool color_write_;
 };
 
 } // namespace renderer

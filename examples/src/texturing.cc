@@ -23,7 +23,7 @@ struct MyProgram : Program {
   struct Uniform {
     Mat4 mv;
     Mat4 mvp;
-    Texture tex;
+    Texture<UNorm> tex;
   };
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
@@ -39,11 +39,11 @@ struct MyProgram : Program {
     vout.tc = vin.tc;
   }
 
-  static void fragmentShader(const Fragment &in, const void *u, Vec3 *out) {
+  static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
     const static Vec3 to_light = normalize({0.5f, 1.f, 1.f});
-    const static Vec3 ambient_albedo{.1f, .1f, .1f};
-    const static Vec3 diffuse_albedo{.7f, .7f, .7f};
-    const static Vec3 specular_albedo{.2f, .2f, .2f};
+    const static Vec4 ambient_albedo{.1f, .1f, .1f, 1.f};
+    const static Vec4 diffuse_albedo{.7f, .7f, .7f, 1.f};
+    const static Vec4 specular_albedo{.2f, .2f, .2f, 1.f};
     const static unsigned spec_power = 64;
     auto &fin = static_cast<const MyFragment&>(in);
     auto uin = static_cast<const Uniform*>(u);
@@ -56,14 +56,14 @@ struct MyProgram : Program {
     auto specular = specular_albedo * std::pow(std::max(dot(
             reflect(to_light * -1.f, n), to_eye), 0.f), spec_power);
 
-    *out = {ambient + diffuse + specular};
+    out = ambient + diffuse + specular;
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 8, 1} {}
+  MyProgram() : Program{vertexShader, fragmentShader, 8} {}
 };
 
 auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {
-  std::vector<Vec3> out{width * height};
+  std::vector<UNorm> out(width * height);
   bool white{true};
 
   for (auto r = 0u; r < height; ++r) {
@@ -72,7 +72,12 @@ auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {
     for (auto c = 0u; c < width; ++c) {
       if (c % step == 0)
         white = !white;
-      out[r * width + c] = Vec3(white, white, white);
+      out[r * width + c] = {
+        static_cast<unsigned char>(white * 255),
+        static_cast<unsigned char>(white * 255),
+        static_cast<unsigned char>(white * 255),
+        255
+      };
     }
   }
 
