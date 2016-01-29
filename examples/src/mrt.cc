@@ -54,7 +54,7 @@ struct DeferredStage1 : Program {
     vout.tc = vin.tc;
   }
 
-  static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
+  static void fragmentShader(const Fragment &in, const void *u, Vec4 &) {
     auto &fin = static_cast<const MyFragment&>(in);
     auto uin = static_cast<const UniformStage1*>(u);
     auto x = in.coord.x;
@@ -63,7 +63,6 @@ struct DeferredStage1 : Program {
     uin->rt_color->setTexel(x, y, uin->tex_diff.sample(fin.tc.x, fin.tc.y));
     uin->rt_normal->setTexel(x, y, normalize(fin.normal));
     uin->rt_pos_v->setTexel(x, y, fin.pos_v);
-    out = {1.f, 1.f, 1.f, 1.f};
   }
 
   DeferredStage1() : Program{vertexShader, fragmentShader, 8} {}
@@ -83,16 +82,16 @@ struct DeferredStage2 : Program {
 
     auto tex = uin->rt_color->fetchTexel(in.coord.x, in.coord.y);
     if (tex.a == 0.f) {
-      out = {0.f, 0.f, 0.f, 0.f};
+      out = tex;
       return;
     }
     auto n = uin->rt_normal->fetchTexel(in.coord.x, in.coord.y);
     auto pos_v = uin->rt_pos_v->fetchTexel(in.coord.x, in.coord.y);
 
-    auto to_eye = normalize(pos_v * -1.f);
+    auto to_eye = normalize(-pos_v);
     auto diffuse =  tex * std::max(dot(n, to_light), 0.f) * diffuse_albedo;
     auto specular = specular_albedo * std::pow(std::max(dot(
-            reflect(to_light * -1.f, n), to_eye), 0.f), spec_power);
+            reflect(-to_light, n), to_eye), 0.f), spec_power);
 
     out = diffuse + specular;
   }

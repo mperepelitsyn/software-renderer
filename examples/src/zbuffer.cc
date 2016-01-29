@@ -41,11 +41,11 @@ struct MyProgram : Program {
     const static unsigned spec_power = 64;
     auto &fin = static_cast<const MyFragment&>(in);
 
-    auto to_eye = normalize(fin.pos_v * -1.f);
+    auto to_eye = normalize(-fin.pos_v);
     auto n = normalize(fin.normal);
     auto diffuse = diffuse_albedo * std::max(dot(n, to_light), 0.f);
     auto specular = specular_albedo * std::pow(std::max(dot(
-            reflect(to_light * -1.f, n), to_eye), 0.f), spec_power);
+            reflect(-to_light, n), to_eye), 0.f), spec_power);
 
     out = {ambient_albedo + diffuse + specular, 1.f};
   }
