@@ -1,16 +1,12 @@
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
-#include <functional>
 
 #include "renderer/pipeline.h"
 
 namespace renderer {
 
 namespace {
-
-float getNearestPixelCenter(float x) {
-  return floor(x) + 0.5;
-}
 
 float lerp(float a, float b, float w) {
   return (1.f - w) * a + w * b;
@@ -40,7 +36,6 @@ void Pipeline::draw() {
   auto triangles = assembleTriangles(transformed);
   triangles = clipTriangles(triangles);
   convertToScreenSpace(triangles, fb_->getWidth(), fb_->getHeight());
-  triangles = cullTriangles(triangles);
   rasterize(triangles);
 }
 
@@ -91,36 +86,6 @@ std::vector<Triangle> Pipeline::clipTriangles(
   return out;
 }
 
-std::vector<Triangle> Pipeline::cullTriangles(
-    const std::vector<Triangle> &triangles) {
-  std::vector<Triangle> out;
-
-  for (auto &tri : triangles) {
-    auto darea = (tri.v[1]->pos.x - tri.v[0]->pos.x) *
-                 (tri.v[2]->pos.y - tri.v[0]->pos.y) -
-                 (tri.v[2]->pos.x - tri.v[0]->pos.x) *
-                 (tri.v[1]->pos.y - tri.v[0]->pos.y);
-    switch (culling_) {
-    case NONE:
-      if (darea < 0)
-        out.push_back({{tri.v[0], tri.v[2], tri.v[1]}, -darea});
-      else
-        out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
-      break;
-    case BACK_FACING:
-      if (darea >= 0)
-        out.push_back({{tri.v[0], tri.v[1], tri.v[2]}, darea});
-      break;
-    case FRONT_FACING:
-      if (darea < 0)
-        out.push_back({{tri.v[0], tri.v[2], tri.v[1]}, -darea});
-      break;
-    }
-  }
-
-  return out;
-}
-
 void Pipeline::convertToScreenSpace(std::vector<Triangle> &triangles,
                                     unsigned width, unsigned height) {
   for (auto &tri : triangles) {
@@ -140,9 +105,17 @@ void Pipeline::convertToScreenSpace(std::vector<Triangle> &triangles,
   }
 }
 
-void Pipeline::rasterize(const std::vector<Triangle> &triangles) {
+void Pipeline::rasterize(std::vector<Triangle> &triangles) {
   for (auto &tri : triangles) {
     if (wireframe_) {
+      // TODO: Deal with the duplication of the area calculation.
+      auto area = (tri.v[1]->pos.x - tri.v[0]->pos.x) *
+                  (tri.v[2]->pos.y - tri.v[0]->pos.y) -
+                  (tri.v[2]->pos.x - tri.v[0]->pos.x) *
+                  (tri.v[1]->pos.y - tri.v[0]->pos.y);
+      if ((culling_ == BACK_FACING && area <= 0.f)
+          || (culling_ == FRONT_FACING && area >= 0.f))
+        continue;
       rasterizeLine(*tri.v[0], *tri.v[1]);
       rasterizeLine(*tri.v[0], *tri.v[2]);
       rasterizeLine(*tri.v[1], *tri.v[2]);
@@ -206,54 +179,96 @@ void Pipeline::rasterizeLine(const VertexH &v0, const VertexH &v1) {
 }
 
 // Top-left filling convention.
-void Pipeline::rasterizeTriHalfSpace(const Triangle &tri) {
-  auto x0 = tri.v[0]->pos.x;
-  auto x1 = tri.v[1]->pos.x;
-  auto x2 = tri.v[2]->pos.x;
-  auto y0 = tri.v[0]->pos.y;
-  auto y1 = tri.v[1]->pos.y;
-  auto y2 = tri.v[2]->pos.y;
+void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
+  // 8 bit sub pixel precision.
+  constexpr auto prec_bits = 8;
+  constexpr auto step = 1 << prec_bits;
+  constexpr auto mask = ~(step - 1);
+  constexpr auto offset = (step - 1) >> 1;
+  constexpr auto scale = static_cast<float>(step);
+
+  int x0 = tri.v[0]->pos.x * scale;
+  int x1 = tri.v[1]->pos.x * scale;
+  int x2 = tri.v[2]->pos.x * scale;
+  int y0 = tri.v[0]->pos.y * scale;
+  int y1 = tri.v[1]->pos.y * scale;
+  int y2 = tri.v[2]->pos.y * scale;
+
+  int dx0 = x2 - x1;
+  int dx1 = x0 - x2;
+  int dx2 = x1 - x0;
+  int dy0 = y2 - y1;
+  int dy1 = y0 - y2;
+  int dy2 = y1 - y0;
+
+  // Culling and degenerate triangle handling.
+  int area = (static_cast<long long>(dx2) * (y2 - y0)
+              - static_cast<long long>(dy2) * (x2 - x0)) >> prec_bits;
+
+  switch (culling_) {
+  case NONE:
+    if (area < 0) {
+      std::swap(tri.v[1], tri.v[2]);
+      area = -area;
+    }
+    break;
+  case BACK_FACING:
+    if (area <= 0)
+      return;
+    break;
+  case FRONT_FACING:
+    if (area < 0) {
+      std::swap(tri.v[1], tri.v[2]);
+      area = -area;
+      break;
+    }
+    return;
+  }
+  if (area == 0)
+    return;
+
+  auto area_rec = 1.f / area;
 
   auto aabb_x = std::minmax({x0, x1, x2});
   auto aabb_y = std::minmax({y0, y1, y2});
-  aabb_x = {std::max(0.f, aabb_x.first),
-            std::min(static_cast<float>(fb_->getWidth() - 1), aabb_x.second)};
-  aabb_y = {std::max(0.f, aabb_y.first),
-            std::min(static_cast<float>(fb_->getHeight() - 1), aabb_y.second)};
+  aabb_x = {std::max(0, aabb_x.first),
+            std::min((int)(fb_->getWidth() - 1) << prec_bits, aabb_x.second)};
+  aabb_y = {std::max(0, aabb_y.first),
+            std::min((int)(fb_->getHeight() - 1) << prec_bits, aabb_y.second)};
 
-  auto e0_top_left = y1 > y2 || (y1 == y2 && x1 > x2);
-  auto e1_top_left = y2 > y0 || (y2 == y0 && x2 > x0);
-  auto e2_top_left = y0 > y1 || (y0 == y1 && x0 > x1);
 
-  auto dx0 = x2 - x1;
-  auto dx1 = x0 - x2;
-  auto dx2 = x1 - x0;
-  auto dy0 = y2 - y1;
-  auto dy1 = y0 - y2;
-  auto dy2 = y1 - y0;
+  auto bias0 = dy0 < 0 || (dy0 == 0 && dx0 < 0) ? 0 : -1;
+  auto bias1 = dy1 < 0 || (dy1 == 0 && dx1 < 0) ? 0 : -1;
+  auto bias2 = dy2 < 0 || (dy2 == 0 && dx2 < 0) ? 0 : -1;
 
-  auto x_start = getNearestPixelCenter(aabb_x.first);
-  auto y_start = getNearestPixelCenter(aabb_y.first);
-  auto x_end = getNearestPixelCenter(aabb_x.second);
-  auto y_end = getNearestPixelCenter(aabb_y.second);
+  auto x_start = (aabb_x.first & mask) + offset;
+  auto y_start = (aabb_y.first & mask) + offset;
+  auto x_end = (aabb_x.second & mask) + offset;
+  auto y_end = (aabb_y.second & mask) + offset;
 
-  auto y_e0 =  dx0 * y_start - dy0 * x_start + dy0 * x1 - dx0 * y1;
-  auto y_e1 =  dx1 * y_start - dy1 * x_start + dy1 * x2 - dx1 * y2;
-  auto y_e2 =  dx2 * y_start - dy2 * x_start + dy2 * x0 - dx2 * y0;
+  int y_e0 = (static_cast<long long>(dx0) * (y_start - y1)
+              - static_cast<long long>(dy0) * (x_start - x1) + bias0)
+              >> prec_bits;
+  int y_e1 = (static_cast<long long>(dx1) * (y_start - y2)
+              - static_cast<long long>(dy1) * (x_start - x2) + bias1)
+              >> prec_bits;
+  int y_e2 = (static_cast<long long>(dx2) * (y_start - y0)
+              - static_cast<long long>(dy2) * (x_start - x0) + bias2)
+              >> prec_bits;
 
   precomputeAttrs(tri, prog_->attr_count);
 
-  for (auto y = y_start; y <= y_end; ++y) {
+  x_end >>= prec_bits;
+  y_end >>= prec_bits;
+  for (auto y = y_start >> prec_bits; y <= y_end; ++y) {
     auto e0 = y_e0;
     auto e1 = y_e1;
     auto e2 = y_e2;
 
-    for (auto x = x_start; x <= x_end; ++x) {
-      if ((e0 > 0 || (e0 == 0 && e0_top_left)) &&
-          (e1 > 0 || (e1 == 0 && e1_top_left)) &&
-          (e2 > 0 || (e2 == 0 && e2_top_left))) {
-        auto w0 = e0 / tri.darea;
-        auto w1 = e1 / tri.darea;
+    for (auto x = x_start >> prec_bits; x <= x_end; ++x) {
+      if ((e0 | e1 | e2) >= 0) {
+        auto w0 = e0 * area_rec;
+        auto w1 = e1 * area_rec;
         auto w2 = 1 - w0 - w1;
 
         fill(tri, x, y, w0, w1, w2);

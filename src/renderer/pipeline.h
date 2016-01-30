@@ -64,12 +64,11 @@ class Pipeline {
   std::vector<VertexH*> invokeVertexShader();
   std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices);
   std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
-  std::vector<Triangle> cullTriangles(const std::vector<Triangle> &triangles);
   void convertToScreenSpace(std::vector<Triangle> &triangles,
                             unsigned width, unsigned height);
-  void rasterize(const std::vector<Triangle> &triangles);
+  void rasterize(std::vector<Triangle> &triangles);
   void rasterizeLine(const VertexH &v0, const VertexH &v1);
-  void rasterizeTriHalfSpace(const Triangle &tri);
+  void rasterizeTriHalfSpace(Triangle &tri);
   void fill(const VertexH &v1, const VertexH &v2, float x, float y,float w);
   void fill(const Triangle &tri, float x, float y,
             float w0, float w1, float w2);
