@@ -32,64 +32,40 @@ void Pipeline::draw() {
   arena_.reset(vb_->count,
                prog_->attr_count * sizeof(float) + sizeof(VertexH::pos));
 
-  auto transformed = invokeVertexShader();
-  auto triangles = assembleTriangles(transformed);
-  triangles = clipTriangles(triangles);
-  convertToScreenSpace(triangles, fb_->getWidth(), fb_->getHeight());
+  auto triangles = transform();
   rasterize(triangles);
 }
 
-std::vector<VertexH*> Pipeline::invokeVertexShader() {
-  std::vector<VertexH*> transformed{vb_->count};
+std::vector<Triangle> Pipeline::transform() {
   auto buf = static_cast<const char*>(vb_->ptr);
+  auto tri_count = vb_->count / 3;
+  std::vector<Triangle> out{tri_count};
 
-  for (auto i = 0u; i < vb_->count; ++i) {
-    transformed[i] = arena_.allocate<VertexH>();
-    prog_->vs(*reinterpret_cast<const Vertex*>(buf), uniform_, *transformed[i]);
-    buf += vb_->stride;
-  }
-
-  return transformed;
-}
-
-std::vector<Triangle> Pipeline::assembleTriangles(
-    const std::vector<VertexH*> &vertices) {
-  auto tri_count = vertices.size() / 3;
-  std::vector<Triangle> triangles{tri_count};
-
+  auto tri_idx = 0u;
   for (auto i = 0u; i < tri_count; ++i) {
-    triangles[i].v[0] = vertices[i * 3];
-    triangles[i].v[1] = vertices[i * 3 + 1];
-    triangles[i].v[2] = vertices[i * 3 + 2];
-  }
+    auto clipped = 0u;
 
-  return triangles;
-}
+    // Assemble a triangle.
+    auto &tri = out[tri_idx];
+    for (auto v_idx = 0u; v_idx < 3; ++v_idx) {
+      auto &v = tri.v[v_idx];
 
-std::vector<Triangle> Pipeline::clipTriangles(
-    const std::vector<Triangle> &triangles) {
-  std::vector<Triangle> out;
-  auto outside_clip_vol = [] (auto v) {
-    auto w = v->pos.w;
-    if (v->pos.x > w || v->pos.x < -w ||
-        v->pos.y > w || v->pos.y < -w ||
-        v->pos.z > w || v->pos.z < -w)
-      return true;
-    return false;
-  };
+      v = arena_.allocate<VertexH>();
+      prog_->vs(*reinterpret_cast<const Vertex*>(buf), uniform_, *v);
 
-  for (auto &tri : triangles) {
-    if (std::all_of(std::cbegin(tri.v), std::cend(tri.v), outside_clip_vol))
+      // Clip trivially rejectable.
+      if (v->pos.x > v->pos.w || v->pos.x < -v->pos.w ||
+          v->pos.y > v->pos.w || v->pos.y < -v->pos.w ||
+          v->pos.z > v->pos.w || v->pos.z < -v->pos.w)
+        ++clipped;
+
+      buf += vb_->stride;
+    }
+
+    if (clipped == 3)
       continue;
-    out.emplace_back(tri);
-  }
-  return out;
-}
 
-void Pipeline::convertToScreenSpace(std::vector<Triangle> &triangles,
-                                    unsigned width, unsigned height) {
-  for (auto &tri : triangles) {
-    for (auto &vert : tri.v) {
+    for (auto vert : tri.v) {
       // To NDC.
       auto z_recipr = 1.f / vert->pos.w;
       vert->pos.x *= z_recipr;
@@ -98,11 +74,17 @@ void Pipeline::convertToScreenSpace(std::vector<Triangle> &triangles,
       vert->pos.w = z_recipr;
 
       // To screen space.
-      vert->pos.x = vert->pos.x * (width - 1) / 2 + (width - 1) / 2;
-      vert->pos.y = vert->pos.y * (height - 1) / 2 + (height - 1) / 2;
+      auto width = fb_->getWidth();
+      auto height = fb_->getHeight();
+      vert->pos.x = (vert->pos.x * (width - 1) + width - 1) * .5f;
+      vert->pos.y = (vert->pos.y * (height - 1) + height - 1) * .5f;
       vert->pos.z = vert->pos.z * .5f + .5f;
     }
+    ++tri_idx;
   }
+  out.resize(tri_idx);
+
+  return out;
 }
 
 void Pipeline::rasterize(std::vector<Triangle> &triangles) {

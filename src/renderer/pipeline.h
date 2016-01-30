@@ -61,11 +61,7 @@ class Pipeline {
   constexpr static unsigned max_color_outputs{4};
 
  private:
-  std::vector<VertexH*> invokeVertexShader();
-  std::vector<Triangle> assembleTriangles(const std::vector<VertexH*> &vertices);
-  std::vector<Triangle> clipTriangles(const std::vector<Triangle> &triangles);
-  void convertToScreenSpace(std::vector<Triangle> &triangles,
-                            unsigned width, unsigned height);
+  std::vector<Triangle> transform();
   void rasterize(std::vector<Triangle> &triangles);
   void rasterizeLine(const VertexH &v0, const VertexH &v1);
   void rasterizeTriHalfSpace(Triangle &tri);
