@@ -176,16 +176,9 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   int y1 = tri.v[1]->pos.y * scale;
   int y2 = tri.v[2]->pos.y * scale;
 
-  int dx0 = x2 - x1;
-  int dx1 = x0 - x2;
-  int dx2 = x1 - x0;
-  int dy0 = y2 - y1;
-  int dy1 = y0 - y2;
-  int dy2 = y1 - y0;
-
   // Culling and degenerate triangle handling.
-  int area = (static_cast<long long>(dx2) * (y2 - y0)
-              - static_cast<long long>(dy2) * (x2 - x0)) >> prec_bits;
+  int area = (static_cast<long long>(x1 - x0) * (y2 - y0)
+              - static_cast<long long>(y1 - y0) * (x2 - x0)) >> prec_bits;
 
   auto reverse_winding = [&]() {
       std::swap(tri.v[1], tri.v[2]);
@@ -221,6 +214,13 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
             std::min((int)(fb_->getWidth() - 1) << prec_bits, aabb_x.second)};
   aabb_y = {std::max(0, aabb_y.first),
             std::min((int)(fb_->getHeight() - 1) << prec_bits, aabb_y.second)};
+
+  int dx0 = x2 - x1;
+  int dx1 = x0 - x2;
+  int dx2 = x1 - x0;
+  int dy0 = y2 - y1;
+  int dy1 = y0 - y2;
+  int dy2 = y1 - y0;
 
 
   auto bias0 = dy0 < 0 || (dy0 == 0 && dx0 < 0) ? 0 : -1;

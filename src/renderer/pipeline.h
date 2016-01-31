@@ -41,7 +41,6 @@ struct Program {
 
 struct Triangle {
   VertexH *v[3];
-  float darea;
 };
 
 class Pipeline {
