@@ -187,12 +187,17 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   int area = (static_cast<long long>(dx2) * (y2 - y0)
               - static_cast<long long>(dy2) * (x2 - x0)) >> prec_bits;
 
+  auto reverse_winding = [&]() {
+      std::swap(tri.v[1], tri.v[2]);
+      std::swap(x1, x2);
+      std::swap(y1, y2);
+      area = -area;
+  };
+
   switch (culling_) {
   case NONE:
-    if (area < 0) {
-      std::swap(tri.v[1], tri.v[2]);
-      area = -area;
-    }
+    if (area < 0)
+      reverse_winding();
     break;
   case BACK_FACING:
     if (area <= 0)
@@ -200,8 +205,7 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
     break;
   case FRONT_FACING:
     if (area < 0) {
-      std::swap(tri.v[1], tri.v[2]);
-      area = -area;
+      reverse_winding();
       break;
     }
     return;
