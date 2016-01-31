@@ -75,7 +75,8 @@ struct DeferredStage2 : Program {
 
   static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
     static const Vec3 to_light = normalize({0.5f, 1.f, 1.f});
-    static const Vec4 diffuse_albedo{.8f, .8f, .8f, 1.f};
+    static const Vec4 ambient_albedo{.3f, .3f, .3f, 1.f};
+    static const Vec4 diffuse_albedo{.7f, .7f, .7f, 1.f};
     static const Vec4 specular_albedo{.2f, .2f, .2f, 1.f};
     static constexpr auto spec_power = 64u;
     auto uin = static_cast<const UniformStage2*>(u);
@@ -89,11 +90,12 @@ struct DeferredStage2 : Program {
     auto pos_v = uin->rt_pos_v->fetchTexel(in.coord.x, in.coord.y);
 
     auto to_eye = normalize(-pos_v);
+    auto ambient = ambient_albedo * tex;
     auto diffuse =  tex * std::max(dot(n, to_light), 0.f) * diffuse_albedo;
     auto specular = specular_albedo * std::pow(std::max(dot(
             reflect(-to_light, n), to_eye), 0.f), spec_power);
 
-    out = diffuse + specular;
+    out = ambient + diffuse + specular;
   }
 
   DeferredStage2() : Program{vertexShader, fragmentShader, 0} {}
