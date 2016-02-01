@@ -16,12 +16,12 @@ struct Vertex {
 
 struct VertexH {
   Vec4 pos;
+  void *attr;
 };
 
 struct Fragment {
-  // TODO: Needed only in line rasterization.
-  Fragment(const Vec3 &coord) : coord{coord} {}
   Vec3 coord;
+  void *attr;
 };
 
 struct VertexBuffer {
@@ -56,8 +56,7 @@ class Pipeline {
   void setCulling(Culling mode) { culling_ = mode; }
   void draw();
 
-  constexpr static unsigned max_fragment_size{32}; // In floats.
-  constexpr static unsigned max_color_outputs{4};
+  constexpr static unsigned max_attr_size{16}; // In floats.
 
  private:
   std::vector<Triangle> transform();
@@ -69,7 +68,8 @@ class Pipeline {
             float w0, float w1, float w2);
   void invokeFragmentShader(const Fragment &frag);
 
-  Arena arena_;
+  Arena vert_arena_;
+  Arena attr_arena_;
   const VertexBuffer *vb_{nullptr};
   FrameBuffer *fb_{nullptr};
   const Program *prog_;

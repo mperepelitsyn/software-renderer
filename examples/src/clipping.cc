@@ -10,11 +10,7 @@ struct MyVertex : Vertex {
 };
 
 struct MyProgram : Program {
-  struct MyVertexH : VertexH {
-    Vec3 color;
-  };
-
-  struct MyFragment : Fragment {
+  struct Attr {
     Vec3 color;
   };
 
@@ -24,16 +20,16 @@ struct MyProgram : Program {
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
     auto &vin = static_cast<const MyVertex&>(in);
-    auto uin = static_cast<const Uniform*>(u);
-    auto &vout = static_cast<MyVertexH&>(out);
+    auto &uin = *static_cast<const Uniform*>(u);
+    auto &aout = *static_cast<Attr*>(out.attr);
 
-    vout.pos = uin->mvp * Vec4{in.pos, 1.f};
-    vout.color = vin.color;
+    out.pos = uin.mvp * Vec4{in.pos, 1.f};
+    aout.color = vin.color;
   }
 
   static void fragmentShader(const Fragment &in, const void *, Vec4 &out) {
-    auto &fin = static_cast<const MyFragment&>(in);
-    out = {fin.color, 1.f};
+    auto &ain = *static_cast<const Attr*>(in.attr);
+    out = {ain.color, 1.f};
   }
 
   MyProgram() : Program{vertexShader, fragmentShader, 3} {}

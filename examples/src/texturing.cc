@@ -8,13 +8,7 @@ using namespace renderer;
 namespace {
 
 struct MyProgram : Program {
-  struct MyVertexH : VertexH {
-    Vec3 normal;
-    Vec3 pos_v;
-    Vec2 tc;
-  };
-
-  struct MyFragment : Fragment {
+  struct Attr {
     Vec3 normal;
     Vec3 pos_v;
     Vec2 tc;
@@ -28,15 +22,15 @@ struct MyProgram : Program {
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
     auto &vin = static_cast<const app::ObjVertex&>(in);
-    auto uin = static_cast<const Uniform*>(u);
-    auto &vout = static_cast<MyVertexH&>(out);
+    auto &uin = *static_cast<const Uniform*>(u);
+    auto &aout = *static_cast<Attr*>(out.attr);
 
-    auto n = uin->mv * Vec4{vin.normal, 0.f};
-    auto pv = uin->mv * Vec4{in.pos, 1.f};
-    vout.pos = uin->mvp * Vec4{in.pos, 1.f};
-    vout.normal = {n.x, n.y, n.z};
-    vout.pos_v = {pv.x, pv.y, pv.z};
-    vout.tc = vin.tc;
+    auto n = uin.mv * Vec4{vin.normal, 0.f};
+    auto pv = uin.mv * Vec4{in.pos, 1.f};
+    out.pos = uin.mvp * Vec4{in.pos, 1.f};
+    aout.normal = {n.x, n.y, n.z};
+    aout.pos_v = {pv.x, pv.y, pv.z};
+    aout.tc = vin.tc;
   }
 
   static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
@@ -45,12 +39,12 @@ struct MyProgram : Program {
     const static Vec4 diffuse_albedo{.7f, .7f, .7f, 1.f};
     const static Vec4 specular_albedo{.2f, .2f, .2f, 1.f};
     const static unsigned spec_power = 64;
-    auto &fin = static_cast<const MyFragment&>(in);
-    auto uin = static_cast<const Uniform*>(u);
+    auto &fin = *static_cast<const Attr*>(in.attr);
+    auto &uin = *static_cast<const Uniform*>(u);
 
     auto to_eye = normalize(-fin.pos_v);
     auto n = normalize(fin.normal);
-    auto tex = uin->tex.sample(fin.tc.x, fin.tc.y);
+    auto tex = uin.tex.sample(fin.tc.x, fin.tc.y);
     auto ambient = tex * ambient_albedo;
     auto diffuse =  tex * diffuse_albedo * std::max(dot(n, to_light), 0.f);
     auto specular = specular_albedo * std::pow(std::max(dot(

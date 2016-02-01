@@ -13,29 +13,17 @@ constexpr auto height = 900;
 
 namespace {
 
-struct UniformStage1 {
-  Mat4 mv;
-  Mat4 mvp;
-  Texture<UNorm> tex_diff;
-  Texture<UNorm> *rt_color;
-  Texture<Vec3> *rt_normal;
-  Texture<Vec3> *rt_pos_v;
-};
-
-struct UniformStage2 {
-  const Texture<UNorm> *rt_color;
-  const Texture<Vec3> *rt_normal;
-  const Texture<Vec3> *rt_pos_v;
-};
-
 struct DeferredStage1 : Program {
-  struct MyVertexH : VertexH {
-    Vec3 normal;
-    Vec3 pos_v;
-    Vec2 tc;
+  struct Uniform {
+    Mat4 mv;
+    Mat4 mvp;
+    Texture<UNorm> tex_diff;
+    Texture<UNorm> *rt_color;
+    Texture<Vec3> *rt_normal;
+    Texture<Vec3> *rt_pos_v;
   };
 
-  struct MyFragment : Fragment {
+  struct Attr {
     Vec3 normal;
     Vec3 pos_v;
     Vec2 tc;
@@ -43,34 +31,40 @@ struct DeferredStage1 : Program {
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
     auto &vin = static_cast<const ObjVertex&>(in);
-    auto uin = static_cast<const UniformStage1*>(u);
-    auto &vout = static_cast<MyVertexH&>(out);
+    auto &uin = *static_cast<const Uniform*>(u);
+    auto &aout = *static_cast<Attr*>(out.attr);
 
-    auto n = uin->mv * Vec4{vin.normal, 0.f};
-    auto pv = uin->mv * Vec4{in.pos, 1.f};
-    vout.pos = uin->mvp * Vec4{in.pos, 1.f};
-    vout.normal = {n.x, n.y, n.z};
-    vout.pos_v = {pv.x, pv.y, pv.z};
-    vout.tc = vin.tc;
+    auto n = uin.mv * Vec4{vin.normal, 0.f};
+    auto pv = uin.mv * Vec4{in.pos, 1.f};
+    out.pos = uin.mvp * Vec4{in.pos, 1.f};
+    aout.normal = {n.x, n.y, n.z};
+    aout.pos_v = {pv.x, pv.y, pv.z};
+    aout.tc = vin.tc;
   }
 
   static void fragmentShader(const Fragment &in, const void *u, Vec4 &) {
-    auto &fin = static_cast<const MyFragment&>(in);
-    auto uin = static_cast<const UniformStage1*>(u);
+    auto &ain = *static_cast<const Attr*>(in.attr);
+    auto &uin = *static_cast<const Uniform*>(u);
     auto x = in.coord.x;
     auto y = in.coord.y;
 
-    uin->rt_color->setTexel(x, y, uin->tex_diff.sample(fin.tc.x, fin.tc.y));
-    uin->rt_normal->setTexel(x, y, normalize(fin.normal));
-    uin->rt_pos_v->setTexel(x, y, fin.pos_v);
+    uin.rt_color->setTexel(x, y, uin.tex_diff.sample(ain.tc.x, ain.tc.y));
+    uin.rt_normal->setTexel(x, y, normalize(ain.normal));
+    uin.rt_pos_v->setTexel(x, y, ain.pos_v);
   }
 
   DeferredStage1() : Program{vertexShader, fragmentShader, 8} {}
 };
 
 struct DeferredStage2 : Program {
+  struct Uniform {
+    const Texture<UNorm> *rt_color;
+    const Texture<Vec3> *rt_normal;
+    const Texture<Vec3> *rt_pos_v;
+  };
+
   static void vertexShader(const Vertex &in, const void *, VertexH &out) {
-    out = {{in.pos, 1.f}};
+    out = {{in.pos, 1.f}, {}};
   }
 
   static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
@@ -79,15 +73,15 @@ struct DeferredStage2 : Program {
     static const Vec4 diffuse_albedo{.7f, .7f, .7f, 1.f};
     static const Vec4 specular_albedo{.2f, .2f, .2f, 1.f};
     static constexpr auto spec_power = 64u;
-    auto uin = static_cast<const UniformStage2*>(u);
+    auto &uin = *static_cast<const Uniform*>(u);
 
-    auto tex = uin->rt_color->fetchTexel(in.coord.x, in.coord.y);
+    auto tex = uin.rt_color->fetchTexel(in.coord.x, in.coord.y);
     if (tex.a == 0.f) {
       out = tex;
       return;
     }
-    auto n = uin->rt_normal->fetchTexel(in.coord.x, in.coord.y);
-    auto pos_v = uin->rt_pos_v->fetchTexel(in.coord.x, in.coord.y);
+    auto n = uin.rt_normal->fetchTexel(in.coord.x, in.coord.y);
+    auto pos_v = uin.rt_pos_v->fetchTexel(in.coord.x, in.coord.y);
 
     auto to_eye = normalize(-pos_v);
     auto ambient = ambient_albedo * tex;
@@ -174,8 +168,8 @@ class MRTApp : public App {
   Texture<UNorm> rt_color;
   Texture<Vec3> rt_normal;
   Texture<Vec3> rt_pos_v;
-  UniformStage1 uniform1_;
-  UniformStage2 uniform2_;
+  DeferredStage1::Uniform uniform1_;
+  DeferredStage2::Uniform uniform2_;
   DeferredStage1 prog1_;
   DeferredStage2 prog2_;
   Mat4 proj_;

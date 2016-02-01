@@ -1,6 +1,9 @@
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstdlib>
+
+#include <immintrin.h>
 
 #include "renderer/pipeline.h"
 
@@ -13,13 +16,30 @@ float lerp(float a, float b, float w) {
 }
 
 void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
-  float *in[] = {reinterpret_cast<float*>(tri.v[0] + 1),
-                 reinterpret_cast<float*>(tri.v[1] + 1),
-                 reinterpret_cast<float*>(tri.v[2] + 1)};
-  for (auto i = 0u; i < attr_count; ++i) {
-    *(in[0] + i) *= tri.v[0]->pos.w;
-    *(in[1] + i) = *(in[1] + i) * tri.v[1]->pos.w - *(in[0] + i);
-    *(in[2] + i) = *(in[2] + i) * tri.v[2]->pos.w - *(in[0] + i);
+  if (!attr_count)
+    return;
+
+  float *in[] = {reinterpret_cast<float*>(tri.v[0]->attr),
+                 reinterpret_cast<float*>(tri.v[1]->attr),
+                 reinterpret_cast<float*>(tri.v[2]->attr)};
+
+  auto w0 = _mm256_broadcast_ss(&tri.v[0]->pos.w);
+  auto w1 = _mm256_broadcast_ss(&tri.v[1]->pos.w);
+  auto w2 = _mm256_broadcast_ss(&tri.v[2]->pos.w);
+
+  auto vecs = (attr_count + 7) / 8;
+  for (auto i = 0u; i < vecs; ++i) {
+    auto in0 = _mm256_load_ps(in[0]);
+    auto in1 = _mm256_load_ps(in[1]);
+    auto in2 = _mm256_load_ps(in[2]);
+    auto attr0 = _mm256_mul_ps(in0, w0);
+    _mm256_store_ps(in[1], _mm256_sub_ps(_mm256_mul_ps(in1, w1), attr0));
+    _mm256_store_ps(in[2], _mm256_sub_ps(_mm256_mul_ps(in2, w2), attr0));
+    _mm256_store_ps(in[0], attr0);
+
+    in[0] += 8;
+    in[1] += 8;
+    in[2] += 8;
   }
 }
 
@@ -29,8 +49,8 @@ void Pipeline::draw() {
   assert(vb_);
   assert(prog_);
 
-  arena_.reset(vb_->count,
-               prog_->attr_count * sizeof(float) + sizeof(VertexH::pos));
+  vert_arena_.reset(vb_->count, sizeof(VertexH), alignof(VertexH));
+  attr_arena_.reset(vb_->count, (prog_->attr_count + 7) / 8 * 32, 32);
 
   auto triangles = transform();
   rasterize(triangles);
@@ -50,7 +70,8 @@ std::vector<Triangle> Pipeline::transform() {
     for (auto v_idx = 0u; v_idx < 3; ++v_idx) {
       auto &v = tri.v[v_idx];
 
-      v = arena_.allocate<VertexH>();
+      v = vert_arena_.allocate<VertexH>();
+      v->attr = attr_arena_.allocate<void>();
       prog_->vs(*reinterpret_cast<const Vertex*>(buf), uniform_, *v);
 
       // Clip trivially rejectable.
@@ -280,19 +301,19 @@ void Pipeline::fill(const VertexH &v1, const VertexH &v2,
 
   auto z_v = lerp(v1.pos.w, v2.pos.w, w);
 
-  float storage[max_fragment_size];
-  auto frag = reinterpret_cast<Fragment*>(storage);
-  const float *in[] = {reinterpret_cast<const float*>(&v1 + 1),
-                       reinterpret_cast<const float*>(&v2 + 1)};
-  frag->coord.x = x;
-  frag->coord.y = y;
-  frag->coord.z = z_s;
-  auto out = reinterpret_cast<float*>(frag + 1);
+  Fragment frag;
+  float storage[max_attr_size];
+  frag.attr = &storage;
+  const float *in[] = {reinterpret_cast<const float*>(&v1.attr),
+                       reinterpret_cast<const float*>(&v2.attr)};
+  frag.coord.x = x;
+  frag.coord.y = y;
+  frag.coord.z = z_s;
 
   for (auto i = 0u; i < prog_->attr_count; ++i) {
-    out[i] = lerp(*(in[0] + i) * v1.pos.w, *(in[1] + i) * v2.pos.w, w) / z_v;
+    storage[i] = lerp(*(in[0] + i) * v1.pos.w, *(in[1] + i) * v2.pos.w, w) / z_v;
   }
-  invokeFragmentShader(*frag);
+  invokeFragmentShader(frag);
 }
 
 void Pipeline::fill(const Triangle &tri, float x, float y,
@@ -303,22 +324,38 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
   if (z_s >= fb_->getDepth(x, y))
     return;
 
-  auto z_v = w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w;
+  Fragment frag;
+  alignas(32) float storage[max_attr_size];
+  frag.attr = &storage;
 
-  float storage[max_fragment_size];
-  auto frag = reinterpret_cast<Fragment*>(storage);
-  const float *in[] = {reinterpret_cast<float*>(tri.v[0] + 1),
-                       reinterpret_cast<float*>(tri.v[1] + 1),
-                       reinterpret_cast<float*>(tri.v[2] + 1)};
-  frag->coord.x = x;
-  frag->coord.y = y;
-  frag->coord.z = z_s;
-  auto out = reinterpret_cast<float*>(frag + 1);
+  frag.coord.x = x;
+  frag.coord.y = y;
+  frag.coord.z = z_s;
 
-  for (auto i = 0u; i < prog_->attr_count; ++i) {
-    out[i] = (*(in[0] + i) + *(in[1] + i) * w1 + *(in[2] + i) * w2) / z_v;
+  // Interpolate attributes.
+  if (prog_->attr_count) {
+    const float *in[] = {reinterpret_cast<float*>(tri.v[0]->attr),
+                         reinterpret_cast<float*>(tri.v[1]->attr),
+                         reinterpret_cast<float*>(tri.v[2]->attr)};
+    auto z_v_rec = 1.f /
+         (w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w);
+
+    auto vw1 = _mm256_broadcast_ss(&w1);
+    auto vw2 = _mm256_broadcast_ss(&w2);
+    auto vz_rec = _mm256_broadcast_ss(&z_v_rec);
+
+    auto vecs = (prog_->attr_count + 7) / 8;
+    for (auto i = 0u; i < vecs; ++i) {
+      auto in0 = _mm256_load_ps(in[0] + i * 8);
+      auto in1 = _mm256_load_ps(in[1] + i * 8);
+      auto in2 = _mm256_load_ps(in[2] + i * 8);
+      _mm256_store_ps(&storage[i * 8], _mm256_mul_ps(_mm256_add_ps(in0,
+              _mm256_add_ps(_mm256_mul_ps(in1, vw1), _mm256_mul_ps(in2, vw2))),
+              vz_rec));
+    }
   }
-  invokeFragmentShader(*frag);
+
+  invokeFragmentShader(frag);
 }
 
 void Pipeline::invokeFragmentShader(const Fragment &frag) {
