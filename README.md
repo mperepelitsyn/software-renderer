@@ -7,12 +7,12 @@ A toy software implementation of a graphics pipeline with programmable vertex an
  - clang / GCC compiler with C++14 support
  - Linux
 
+## License
+[MIT](LICENSE)
+
 ## TODO
  - add proper culling due to the now limited range of the guard band
  - add subpixel precision to the line rasterizer
  - vectorize
  - parallelize
  - make it cross platform
-
-## License
-[MIT](LICENCE)
