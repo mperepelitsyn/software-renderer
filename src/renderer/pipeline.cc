@@ -11,8 +11,26 @@ namespace renderer {
 
 namespace {
 
+struct Edge {
+  int eq;
+  int step_x;
+  int step_y;
+};
+
 float lerp(float a, float b, float w) {
   return (1.f - w) * a + w * b;
+}
+
+Edge setup_edge(int x1, int y1, int x2, int y2, int x_start, int y_start,
+                int prec) {
+  auto dx = x2 - x1;
+  auto dy = y2 - y1;
+  auto bias = dy < 0 || (dy == 0 && dx < 0) ? 0 : -1;
+
+  int e = (static_cast<long long>(dx) * (y_start - y2)
+           - static_cast<long long>(dy) * (x_start - x2) + bias)
+           >> prec;
+  return {e, dy, dx};
 }
 
 void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
@@ -236,41 +254,23 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   aabb_y = {std::max(0, aabb_y.first),
             std::min((int)(fb_->getHeight() - 1) << prec_bits, aabb_y.second)};
 
-  int dx0 = x2 - x1;
-  int dx1 = x0 - x2;
-  int dx2 = x1 - x0;
-  int dy0 = y2 - y1;
-  int dy1 = y0 - y2;
-  int dy2 = y1 - y0;
-
-
-  auto bias0 = dy0 < 0 || (dy0 == 0 && dx0 < 0) ? 0 : -1;
-  auto bias1 = dy1 < 0 || (dy1 == 0 && dx1 < 0) ? 0 : -1;
-  auto bias2 = dy2 < 0 || (dy2 == 0 && dx2 < 0) ? 0 : -1;
-
   auto x_start = (aabb_x.first & mask) + offset;
   auto y_start = (aabb_y.first & mask) + offset;
   auto x_end = (aabb_x.second & mask) + offset;
   auto y_end = (aabb_y.second & mask) + offset;
 
-  int y_e0 = (static_cast<long long>(dx0) * (y_start - y1)
-              - static_cast<long long>(dy0) * (x_start - x1) + bias0)
-              >> prec_bits;
-  int y_e1 = (static_cast<long long>(dx1) * (y_start - y2)
-              - static_cast<long long>(dy1) * (x_start - x2) + bias1)
-              >> prec_bits;
-  int y_e2 = (static_cast<long long>(dx2) * (y_start - y0)
-              - static_cast<long long>(dy2) * (x_start - x0) + bias2)
-              >> prec_bits;
+  auto edge0 = setup_edge(x1, y1, x2, y2, x_start, y_start, prec_bits);
+  auto edge1 = setup_edge(x2, y2, x0, y0, x_start, y_start, prec_bits);
+  auto edge2 = setup_edge(x0, y0, x1, y1, x_start, y_start, prec_bits);
 
   precomputeAttrs(tri, prog_->attr_count);
 
   x_end >>= prec_bits;
   y_end >>= prec_bits;
   for (auto y = y_start >> prec_bits; y <= y_end; ++y) {
-    auto e0 = y_e0;
-    auto e1 = y_e1;
-    auto e2 = y_e2;
+    auto e0 = edge0.eq;
+    auto e1 = edge1.eq;
+    auto e2 = edge2.eq;
 
     for (auto x = x_start >> prec_bits; x <= x_end; ++x) {
       if ((e0 | e1 | e2) >= 0) {
@@ -280,14 +280,14 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
 
         fill(tri, x, y, w0, w1, w2);
       }
-      e0 -= dy0;
-      e1 -= dy1;
-      e2 -= dy2;
+      e0 -= edge0.step_x;
+      e1 -= edge1.step_x;
+      e2 -= edge2.step_x;
     }
 
-    y_e0 += dx0;
-    y_e1 += dx1;
-    y_e2 += dx2;
+    edge0.eq += edge0.step_y;
+    edge1.eq += edge1.step_y;
+    edge2.eq += edge2.step_y;
   }
 }
 
