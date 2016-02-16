@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "app/app.h"
 #include "app/obj_parser.h"
 

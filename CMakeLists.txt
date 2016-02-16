@@ -40,13 +40,19 @@ if (IS_SUPERBUILD)
 endif()
 
 project("Software Renderer" CXX)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/examples/bin)
+
+foreach(build_type DEBUG RELEASE MINSIZEREL RELWITHDEBINFO)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${build_type} ${CMAKE_SOURCE_DIR}/examples/bin)
+endforeach()
 
 # Setup compiler flags.
 set(CMAKE_CXX_STANDARD 14)
 if (CMAKE_COMPILER_IS_GNUCXX)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -mavx")
+elseif(MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX")
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
@@ -55,15 +61,18 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 
 file(GLOB RENDERER_SOURCES "src/renderer/*.cc")
+file(GLOB RENDERER_HEADERS "src/renderer/*.h")
 file(GLOB APP_SOURCES "src/app/*.cc")
+file(GLOB APP_HEADERS "src/app/*.h")
 file(GLOB EXAMPLES_SOURCES "examples/src/*.cc")
 
-add_library(renderer STATIC ${RENDERER_SOURCES})
-add_library(app STATIC ${APP_SOURCES})
+add_library(renderer STATIC ${RENDERER_SOURCES} ${RENDERER_HEADERS})
+add_library(app STATIC ${APP_SOURCES} ${APP_HEADERS})
 target_link_libraries(app renderer glfw GLEW::glew_s)
 
 foreach(EXAMPLES_SOURCE ${EXAMPLES_SOURCES})
   get_filename_component(EXAMPLE_NAME ${EXAMPLES_SOURCE} NAME_WE)
   add_executable(${EXAMPLE_NAME} ${EXAMPLES_SOURCE})
   target_link_libraries(${EXAMPLE_NAME} app)
+  set_target_properties(${EXAMPLE_NAME} PROPERTIES DEBUG_POSTFIX "_d")
 endforeach(EXAMPLES_SOURCE)
