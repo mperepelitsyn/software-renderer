@@ -17,10 +17,8 @@ class Arena {
       alloc_size_ = alloc_size;
     }
     size_ = size;
-    ptr_ = storage_.get();
-
-    size_t space;
-    std::align(alignment, alloc_size, ptr_, space);
+    ptr_ = reinterpret_cast<void*>(
+        reinterpret_cast<uintptr_t>(storage_.get()) & ~(alignment - 1));
   }
 
   template<class T>
