@@ -7,6 +7,15 @@ A toy software implementation of a graphics pipeline with programmable vertex an
  - CMake
  - C++14 compiler
 
+## Compiling
+    git clone https://github.com/mperepelitsyn/software-renderer
+    cd software-renderer
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=release ..
+    make -j
+    ls ../examples/bin
+
 ## TODO
  - add proper culling due to the now limited range of the guard band
  - add subpixel precision to the line rasterizer
