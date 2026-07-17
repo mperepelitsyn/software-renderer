@@ -5,10 +5,9 @@
 namespace renderer {
 
 class Arena {
- public:
+public:
   Arena() = default;
-  Arena(unsigned count, unsigned size, unsigned alignment)
-    { reset(count, size, alignment); }
+  Arena(unsigned count, unsigned size, unsigned alignment) { reset(count, size, alignment); }
 
   void reset(unsigned count, unsigned size, unsigned alignment) {
     auto alloc_size = count * size + alignment - 1;
@@ -21,15 +20,14 @@ class Arena {
                                     ~(static_cast<uintptr_t>(alignment) - 1));
   }
 
-  template<class T>
-  T *allocate() {
+  template <class T> T *allocate() {
     auto p = ptr_;
-    ptr_ = static_cast<unsigned char*>(ptr_) + size_;
+    ptr_ = static_cast<unsigned char *>(ptr_) + size_;
 
-    return static_cast<T*>(p);
+    return static_cast<T *>(p);
   }
 
- private:
+private:
   std::unique_ptr<unsigned char[]> storage_;
   void *ptr_{nullptr};
   unsigned size_{};

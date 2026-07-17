@@ -9,27 +9,26 @@
 #include "app/fps_counter.h"
 #include "renderer/pipeline.h"
 
-#define DEFINE_AND_CALL_APP(app_type, w, h, title) \
-int main() { \
-  try { \
-    app_type _app(w, h, #title); \
-    _app.render(); \
-  } \
-  catch (const app::Error &e) { \
-    std::cerr << e.what() << '\n'; \
-    return EXIT_FAILURE; \
-  } \
-}
+#define DEFINE_AND_CALL_APP(app_type, w, h, title)                                                 \
+  int main() {                                                                                     \
+    try {                                                                                          \
+      app_type _app(w, h, #title);                                                                 \
+      _app.render();                                                                               \
+    } catch (const app::Error &e) {                                                                \
+      std::cerr << e.what() << '\n';                                                               \
+      return EXIT_FAILURE;                                                                         \
+    }                                                                                              \
+  }
 
 namespace app {
 
 class App {
- public:
-  App(unsigned w, unsigned h, const std::string& name);
+public:
+  App(unsigned w, unsigned h, const std::string &name);
   void render();
   ~App();
 
- protected:
+protected:
   virtual void renderLoop(double time, double delta) = 0;
   virtual void startup() {}
   virtual void shutdown() {}
@@ -39,7 +38,7 @@ class App {
   renderer::FrameBuffer fb_;
   unsigned width_, height_;
 
- private:
+private:
   GLFWwindow *window_;
   double last_time_{};
   GLuint program_;
@@ -50,4 +49,3 @@ class App {
 };
 
 } // namespace app
-

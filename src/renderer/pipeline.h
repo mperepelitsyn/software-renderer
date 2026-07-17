@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "renderer/arena.h"
 #include "renderer/framebuffer.h"
@@ -30,8 +30,8 @@ struct VertexBuffer {
   unsigned stride;
 };
 
-using VertexShader = void(*)(const Vertex &in, const void *u, VertexH &out);
-using FragmentShader = void(*)(const Fragment &in, const void *u, Vec4 &out);
+using VertexShader = void (*)(const Vertex &in, const void *u, VertexH &out);
+using FragmentShader = void (*)(const Fragment &in, const void *u, Vec4 &out);
 
 struct Program {
   VertexShader vs;
@@ -44,7 +44,7 @@ struct Triangle {
 };
 
 class Pipeline {
- public:
+public:
   enum Culling { NONE, FRONT_FACING, BACK_FACING };
 
   void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
@@ -58,14 +58,13 @@ class Pipeline {
 
   constexpr static unsigned max_attr_size{16}; // In floats.
 
- private:
+private:
   std::vector<Triangle> transform();
   void rasterize(std::vector<Triangle> &triangles);
   void rasterizeLine(const VertexH &v0, const VertexH &v1);
   void rasterizeTriHalfSpace(Triangle &tri);
-  void fill(const VertexH &v1, const VertexH &v2, float x, float y,float w);
-  void fill(const Triangle &tri, float x, float y,
-            float w0, float w1, float w2);
+  void fill(const VertexH &v1, const VertexH &v2, float x, float y, float w);
+  void fill(const Triangle &tri, float x, float y, float w0, float w1, float w2);
   void invokeFragmentShader(const Fragment &frag);
 
   Arena vert_arena_;
@@ -77,7 +76,5 @@ class Pipeline {
   Culling culling_{NONE};
   bool wireframe_{false};
 };
-
-
 
 } // namespace renderer

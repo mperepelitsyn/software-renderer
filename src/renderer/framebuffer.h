@@ -5,9 +5,9 @@
 namespace renderer {
 
 class FrameBuffer {
- public:
+public:
   FrameBuffer(unsigned width, unsigned height)
-    : color_{width, height}, depth_{width, height}, color_write_{true} {}
+      : color_{width, height}, depth_{width, height}, color_write_{true} {}
 
   void clear() {
     color_.clear();
@@ -27,7 +27,7 @@ class FrameBuffer {
   auto getWidth() const { return color_.getWidth(); }
   auto getHeight() const { return color_.getHeight(); }
 
- private:
+private:
   Texture<UNorm> color_;
   Texture<float> depth_;
   bool color_write_;

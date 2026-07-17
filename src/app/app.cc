@@ -12,8 +12,7 @@ void errorCallback(int error, const char *desc) {
   throw Error{oss.str()};
 }
 
-void keyCallback(GLFWwindow* window, int key, int /*sc*/, int action,
-                 int /*mods*/) {
+void keyCallback(GLFWwindow *window, int key, int /*sc*/, int action, int /*mods*/) {
   if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
     glfwSetWindowShouldClose(window, GL_TRUE);
 }
@@ -67,7 +66,7 @@ GLuint linkProgram(const GLchar *vs_source, const GLchar *fs_source) {
 } // namespace
 
 App::App(unsigned w, unsigned h, const std::string &name)
-  : fb_{w, h}, width_{w}, height_{h}, name_{name}, fps_counter_{name_, 0.25} {
+    : fb_{w, h}, width_{w}, height_{h}, name_{name}, fps_counter_{name_, 0.25} {
   glfwSetErrorCallback(errorCallback);
 
   if (!glfwInit())
@@ -95,8 +94,7 @@ App::App(unsigned w, unsigned h, const std::string &name)
   glGenTextures(1, &texture_);
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, texture_);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width_, height_, 0, GL_RGBA,
-               GL_UNSIGNED_BYTE, nullptr);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width_, height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   program_ = linkProgram(vs_source, fs_source);
@@ -116,7 +114,7 @@ App::~App() {
 
 void App::render() {
   startup();
-  while(!glfwWindowShouldClose(window_)) {
+  while (!glfwWindowShouldClose(window_)) {
     auto time = glfwGetTime();
     auto delta = time - last_time_;
     last_time_ = time;
@@ -125,8 +123,8 @@ void App::render() {
     renderLoop(time, delta);
 
     glClear(GL_COLOR_BUFFER_BIT);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_, height_, GL_RGBA,
-                    GL_UNSIGNED_BYTE, fb_.getColorTexture().getRawBuffer());
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE,
+                    fb_.getColorTexture().getRawBuffer());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window_);
     glfwPollEvents();
@@ -135,4 +133,3 @@ void App::render() {
 }
 
 } // namespace app
-

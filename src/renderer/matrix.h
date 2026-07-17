@@ -9,21 +9,17 @@ namespace renderer {
 struct Mat4 {
   Mat4() {}
   Mat4(float d)
-    : data{{d, 0.f, 0.f, 0.f},
-           {0.f, d, 0.f, 0.f},
-           {0.f, 0.f, d, 0.f},
-           {0.f, 0.f, 0.f, d}} {}
+      : data{{d, 0.f, 0.f, 0.f}, {0.f, d, 0.f, 0.f}, {0.f, 0.f, d, 0.f}, {0.f, 0.f, 0.f, d}} {}
 
   Mat4(const Vec3 &x, const Vec3 &y, const Vec3 &z, const Vec3 &w)
-    : data{
-        {x.x, y.x, z.x, w.x},
-        {x.y, y.y, z.y, w.y},
-        {x.z, y.z, z.z, w.z},
-        {0.f, 0.f, 0.f, 1.f},
-      } {};
+      : data{
+            {x.x, y.x, z.x, w.x},
+            {x.y, y.y, z.y, w.y},
+            {x.z, y.z, z.z, w.z},
+            {0.f, 0.f, 0.f, 1.f},
+        } {};
 
-  Mat4(const Vec4 &r1, const Vec4 &r2, const Vec4 &r3, const Vec4 &r4)
-    : data {r1, r2, r3, r4 } {}
+  Mat4(const Vec4 &r1, const Vec4 &r2, const Vec4 &r3, const Vec4 &r4) : data{r1, r2, r3, r4} {}
 
   Vec4 &operator[](unsigned idx) { return data[idx]; }
   const Vec4 &operator[](unsigned idx) const { return data[idx]; }

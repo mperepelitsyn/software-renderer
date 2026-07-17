@@ -19,19 +19,16 @@ struct Edge {
   int step_y;
 };
 
-float lerp(float a, float b, float w) {
-  return (1.f - w) * a + w * b;
-}
+float lerp(float a, float b, float w) { return (1.f - w) * a + w * b; }
 
-Edge setup_edge(int x1, int y1, int x2, int y2, int x_start, int y_start,
-                int prec) {
+Edge setup_edge(int x1, int y1, int x2, int y2, int x_start, int y_start, int prec) {
   auto dx = x2 - x1;
   auto dy = y2 - y1;
   auto bias = dy < 0 || (dy == 0 && dx < 0) ? 0 : -1;
 
-  int e = (static_cast<long long>(dx) * (y_start - y2)
-           - static_cast<long long>(dy) * (x_start - x2) + bias)
-           >> prec;
+  int e = (static_cast<long long>(dx) * (y_start - y2) -
+           static_cast<long long>(dy) * (x_start - x2) + bias) >>
+          prec;
   return {e, dy, dx};
 }
 
@@ -39,9 +36,9 @@ void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
   if (!attr_count)
     return;
 
-  float *in[] = {reinterpret_cast<float*>(tri.v[0]->attr),
-                 reinterpret_cast<float*>(tri.v[1]->attr),
-                 reinterpret_cast<float*>(tri.v[2]->attr)};
+  float *in[] = {reinterpret_cast<float *>(tri.v[0]->attr),
+                 reinterpret_cast<float *>(tri.v[1]->attr),
+                 reinterpret_cast<float *>(tri.v[2]->attr)};
 
 #ifdef __AVX__
   auto w0 = _mm256_broadcast_ss(&tri.v[0]->pos.w);
@@ -90,7 +87,7 @@ void Pipeline::draw() {
 }
 
 std::vector<Triangle> Pipeline::transform() {
-  auto buf = static_cast<const char*>(vb_->ptr);
+  auto buf = static_cast<const char *>(vb_->ptr);
   auto tri_count = vb_->count / 3;
   std::vector<Triangle> out{tri_count};
 
@@ -105,12 +102,11 @@ std::vector<Triangle> Pipeline::transform() {
 
       v = vert_arena_.allocate<VertexH>();
       v->attr = attr_arena_.allocate<void>();
-      prog_->vs(*reinterpret_cast<const Vertex*>(buf), uniform_, *v);
+      prog_->vs(*reinterpret_cast<const Vertex *>(buf), uniform_, *v);
 
       // Clip trivially rejectable.
-      if (v->pos.x > v->pos.w || v->pos.x < -v->pos.w ||
-          v->pos.y > v->pos.w || v->pos.y < -v->pos.w ||
-          v->pos.z > v->pos.w || v->pos.z < -v->pos.w)
+      if (v->pos.x > v->pos.w || v->pos.x < -v->pos.w || v->pos.y > v->pos.w ||
+          v->pos.y < -v->pos.w || v->pos.z > v->pos.w || v->pos.z < -v->pos.w)
         ++clipped;
 
       buf += vb_->stride;
@@ -145,18 +141,14 @@ void Pipeline::rasterize(std::vector<Triangle> &triangles) {
   for (auto &tri : triangles) {
     if (wireframe_) {
       // TODO: Deal with the duplication of the area calculation.
-      auto area = (tri.v[1]->pos.x - tri.v[0]->pos.x) *
-                  (tri.v[2]->pos.y - tri.v[0]->pos.y) -
-                  (tri.v[2]->pos.x - tri.v[0]->pos.x) *
-                  (tri.v[1]->pos.y - tri.v[0]->pos.y);
-      if ((culling_ == BACK_FACING && area <= 0.f)
-          || (culling_ == FRONT_FACING && area >= 0.f))
+      auto area = (tri.v[1]->pos.x - tri.v[0]->pos.x) * (tri.v[2]->pos.y - tri.v[0]->pos.y) -
+                  (tri.v[2]->pos.x - tri.v[0]->pos.x) * (tri.v[1]->pos.y - tri.v[0]->pos.y);
+      if ((culling_ == BACK_FACING && area <= 0.f) || (culling_ == FRONT_FACING && area >= 0.f))
         continue;
       rasterizeLine(*tri.v[0], *tri.v[1]);
       rasterizeLine(*tri.v[0], *tri.v[2]);
       rasterizeLine(*tri.v[1], *tri.v[2]);
-    }
-    else {
+    } else {
       rasterizeTriHalfSpace(tri);
     }
   }
@@ -231,14 +223,15 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   int y2 = tri.v[2]->pos.y * scale;
 
   // Culling and degenerate triangle handling.
-  int area = (static_cast<long long>(x1 - x0) * (y2 - y0)
-              - static_cast<long long>(y1 - y0) * (x2 - x0)) >> prec_bits;
+  int area =
+      (static_cast<long long>(x1 - x0) * (y2 - y0) - static_cast<long long>(y1 - y0) * (x2 - x0)) >>
+      prec_bits;
 
   auto reverse_winding = [&]() {
-      std::swap(tri.v[1], tri.v[2]);
-      std::swap(x1, x2);
-      std::swap(y1, y2);
-      area = -area;
+    std::swap(tri.v[1], tri.v[2]);
+    std::swap(x1, x2);
+    std::swap(y1, y2);
+    area = -area;
   };
 
   switch (culling_) {
@@ -306,8 +299,7 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   }
 }
 
-void Pipeline::fill(const VertexH &v1, const VertexH &v2,
-                    float x, float y, float w) {
+void Pipeline::fill(const VertexH &v1, const VertexH &v2, float x, float y, float w) {
   auto z_s = lerp(v1.pos.z, v2.pos.z, w);
 
   // Early Z-test.
@@ -319,8 +311,8 @@ void Pipeline::fill(const VertexH &v1, const VertexH &v2,
   Fragment frag;
   float storage[max_attr_size];
   frag.attr = &storage;
-  const float *in[] = {reinterpret_cast<const float*>(&v1.attr),
-                       reinterpret_cast<const float*>(&v2.attr)};
+  const float *in[] = {reinterpret_cast<const float *>(&v1.attr),
+                       reinterpret_cast<const float *>(&v2.attr)};
   frag.coord.x = x;
   frag.coord.y = y;
   frag.coord.z = z_s;
@@ -331,8 +323,7 @@ void Pipeline::fill(const VertexH &v1, const VertexH &v2,
   invokeFragmentShader(frag);
 }
 
-void Pipeline::fill(const Triangle &tri, float x, float y,
-                    float w0, float w1, float w2) {
+void Pipeline::fill(const Triangle &tri, float x, float y, float w0, float w1, float w2) {
   auto z_s = w0 * tri.v[0]->pos.z + w1 * tri.v[1]->pos.z + w2 * tri.v[2]->pos.z;
 
   // Early Z-test.
@@ -349,11 +340,10 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
 
   // Interpolate attributes.
   if (prog_->attr_count) {
-    const float *in[] = {reinterpret_cast<float*>(tri.v[0]->attr),
-                         reinterpret_cast<float*>(tri.v[1]->attr),
-                         reinterpret_cast<float*>(tri.v[2]->attr)};
-    auto z_v_rec = 1.f /
-         (w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w);
+    const float *in[] = {reinterpret_cast<float *>(tri.v[0]->attr),
+                         reinterpret_cast<float *>(tri.v[1]->attr),
+                         reinterpret_cast<float *>(tri.v[2]->attr)};
+    auto z_v_rec = 1.f / (w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w);
 
 #ifdef __AVX__
     auto vw1 = _mm256_broadcast_ss(&w1);
@@ -365,9 +355,10 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
       auto in0 = _mm256_load_ps(in[0] + i * 8);
       auto in1 = _mm256_load_ps(in[1] + i * 8);
       auto in2 = _mm256_load_ps(in[2] + i * 8);
-      _mm256_store_ps(&storage[i * 8], _mm256_mul_ps(_mm256_add_ps(in0,
-              _mm256_add_ps(_mm256_mul_ps(in1, vw1), _mm256_mul_ps(in2, vw2))),
-              vz_rec));
+      _mm256_store_ps(&storage[i * 8],
+                      _mm256_mul_ps(_mm256_add_ps(in0, _mm256_add_ps(_mm256_mul_ps(in1, vw1),
+                                                                     _mm256_mul_ps(in2, vw2))),
+                                    vz_rec));
     }
 #else
     for (auto i = 0u; i < prog_->attr_count; ++i)

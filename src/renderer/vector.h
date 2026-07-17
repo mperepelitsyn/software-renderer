@@ -69,17 +69,14 @@ struct Vec4 {
 
   float &operator[](unsigned i) { return data[i]; }
   const float &operator[](unsigned i) const { return data[i]; }
-  Vec4 operator+(const Vec4 &v) const
-    { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
+  Vec4 operator+(const Vec4 &v) const { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
   Vec4 operator+(float a) const { return {x + a, y + a, z + a, w + a}; }
   Vec4 operator-() const { return {-x, -y, -z, -w}; }
-  Vec4 operator-(const Vec4 &v) const
-    { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
+  Vec4 operator-(const Vec4 &v) const { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
   Vec4 operator-(float s) const { return {x - s, y - s, z - s, w - s}; }
   Vec4 operator/(float d) const { return {x / d, y / d, z / d, w / d}; }
   Vec4 operator*(float m) const { return {x * m, y * m, z * m, w * m}; }
-  Vec4 operator*(const Vec4 &v) const
-    { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
+  Vec4 operator*(const Vec4 &v) const { return {x * v.x, y * v.y, z * v.z, w * v.w}; }
 
   union {
     struct {
@@ -98,9 +95,7 @@ struct Vec4 {
   };
 };
 
-inline float dot(const Vec3 &u, const Vec3 &v) {
-  return u.x * v.x + u.y * v.y + u.z * v.z;
-}
+inline float dot(const Vec3 &u, const Vec3 &v) { return u.x * v.x + u.y * v.y + u.z * v.z; }
 
 inline float dot(const Vec4 &u, const Vec4 &v) {
   return u.x * v.x + u.y * v.y + u.z * v.z + u.w * v.w;
@@ -114,13 +109,11 @@ inline float length(const Vec3 &v) {
   return std::sqrt(std::pow(v.x, 2) + std::pow(v.y, 2) + std::pow(v.z, 2));
 }
 
-inline Vec3 reflect(const Vec3 &v, const Vec3 &n) {
-  return v - n * dot(n, v) * 2;
-}
+inline Vec3 reflect(const Vec3 &v, const Vec3 &n) { return v - n * dot(n, v) * 2; }
 
 inline Vec3 normalize(const Vec3 &v) {
   auto len = length(v);
-  return len == 0.f ?  Vec3{0.f, 0.f, 0.f} : v / len;
+  return len == 0.f ? Vec3{0.f, 0.f, 0.f} : v / len;
 }
 
 } // namespace renderer

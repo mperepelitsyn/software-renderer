@@ -49,24 +49,20 @@ std::vector<ObjVertex> parseObj(const std::string &path) {
       float x, y, z;
       iss >> x >> y >> z;
       vertices.emplace_back(x, y, z);
-    }
-    else if (type == "vt") {
+    } else if (type == "vt") {
       float u, v;
       iss >> u >> v;
       uvs.emplace_back(u, v);
-    }
-    else if (type == "vn") {
+    } else if (type == "vn") {
       float x, y, z;
       iss >> x >> y >> z;
       normals.emplace_back(x, y, z);
-    }
-    else if (type == "f") {
+    } else if (type == "f") {
       unsigned vertex_id, uv_id, normal_id;
 
       for (auto i = 0u; i < 3; ++i) {
         std::tie(vertex_id, uv_id, normal_id) = consumeFaceElement(iss);
-        out.emplace_back(vertices[vertex_id - 1],
-                         normal_id ? normals[normal_id - 1] : Vec3{},
+        out.emplace_back(vertices[vertex_id - 1], normal_id ? normals[normal_id - 1] : Vec3{},
                          uv_id ? uvs[uv_id - 1] : Vec2{});
       }
     }

@@ -30,9 +30,9 @@ struct DeferredStage1 : Program {
   };
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
-    auto &vin = static_cast<const ObjVertex&>(in);
-    auto &uin = *static_cast<const Uniform*>(u);
-    auto &aout = *static_cast<Attr*>(out.attr);
+    auto &vin = static_cast<const ObjVertex &>(in);
+    auto &uin = *static_cast<const Uniform *>(u);
+    auto &aout = *static_cast<Attr *>(out.attr);
 
     auto n = uin.mv * Vec4{vin.normal, 0.f};
     auto pv = uin.mv * Vec4{in.pos, 1.f};
@@ -43,8 +43,8 @@ struct DeferredStage1 : Program {
   }
 
   static void fragmentShader(const Fragment &in, const void *u, Vec4 &) {
-    auto &ain = *static_cast<const Attr*>(in.attr);
-    auto &uin = *static_cast<const Uniform*>(u);
+    auto &ain = *static_cast<const Attr *>(in.attr);
+    auto &uin = *static_cast<const Uniform *>(u);
     auto x = in.coord.x;
     auto y = in.coord.y;
 
@@ -73,7 +73,7 @@ struct DeferredStage2 : Program {
     static const Vec4 diffuse_albedo{.7f, .7f, .7f, 1.f};
     static const Vec4 specular_albedo{.2f, .2f, .2f, 1.f};
     static constexpr auto spec_power = 64u;
-    auto &uin = *static_cast<const Uniform*>(u);
+    auto &uin = *static_cast<const Uniform *>(u);
 
     auto tex = uin.rt_color->fetchTexel(in.coord.x, in.coord.y);
     if (tex.a == 0.f) {
@@ -85,9 +85,9 @@ struct DeferredStage2 : Program {
 
     auto to_eye = normalize(-pos_v);
     auto ambient = ambient_albedo * tex;
-    auto diffuse =  tex * std::max(dot(n, to_light), 0.f) * diffuse_albedo;
-    auto specular = specular_albedo * std::pow(std::max(dot(
-            reflect(-to_light, n), to_eye), 0.f), spec_power);
+    auto diffuse = tex * std::max(dot(n, to_light), 0.f) * diffuse_albedo;
+    auto specular =
+        specular_albedo * std::pow(std::max(dot(reflect(-to_light, n), to_eye), 0.f), spec_power);
 
     out = ambient + diffuse + specular;
   }
@@ -98,26 +98,19 @@ struct DeferredStage2 : Program {
 } // namespace
 
 class MRTApp : public App {
- public:
+public:
   MRTApp(unsigned w, unsigned h, const std::string &name)
-    : App{w, h, name},
-      model_{parseObj(ASSETS_DIR "/stormtrooper.obj")},
-      quad_{
-        {{-1.f, -1.f, -1.f}}, {{1.f, -1.f, -1.f}}, {{-1.f, 1.f, -1.f}},
-        {{-1.f, 1.f, -1.f}}, {{1.f, -1.f, -1.f}}, {{1.f, 1.f, -1.f}}
-      },
-      vb_model_{&model_[0], model_.size(), sizeof(model_[0])},
-      vb_quad_{&quad_[0], quad_.size(), sizeof(quad_[0])},
-      rt_color{w, h},
-      rt_normal{w, h},
-      rt_pos_v{w, h},
-      uniform1_{{}, {},
-        {1024, 1024, loadTGA(ASSETS_DIR "/stormtrooper_d.tga")},
-        &rt_color, &rt_normal, &rt_pos_v
-      },
-      uniform2_{&rt_color, &rt_normal, &rt_pos_v} {}
+      : App{w, h, name}, model_{parseObj(ASSETS_DIR "/stormtrooper.obj")},
+        quad_{{{-1.f, -1.f, -1.f}}, {{1.f, -1.f, -1.f}}, {{-1.f, 1.f, -1.f}},
+              {{-1.f, 1.f, -1.f}},  {{1.f, -1.f, -1.f}}, {{1.f, 1.f, -1.f}}},
+        vb_model_{&model_[0], model_.size(), sizeof(model_[0])},
+        vb_quad_{&quad_[0], quad_.size(), sizeof(quad_[0])}, rt_color{w, h}, rt_normal{w, h},
+        rt_pos_v{w, h},
+        uniform1_{{},        {},         {1024, 1024, loadTGA(ASSETS_DIR "/stormtrooper_d.tga")},
+                  &rt_color, &rt_normal, &rt_pos_v},
+        uniform2_{&rt_color, &rt_normal, &rt_pos_v} {}
 
- private:
+private:
   void startup() override {
     ctx_.setCulling(Pipeline::BACK_FACING);
 
@@ -125,8 +118,7 @@ class MRTApp : public App {
     rt_normal.clear();
     rt_pos_v.clear();
 
-    proj_ = createPerspProjMatrix(70.0_deg,
-        static_cast<float>(width_) / height_, 1.f, 100.f);
+    proj_ = createPerspProjMatrix(70.0_deg, static_cast<float>(width_) / height_, 1.f, 100.f);
   }
 
   void renderLoop(double time, double) override {
@@ -176,5 +168,3 @@ class MRTApp : public App {
 };
 
 DEFINE_AND_CALL_APP(MRTApp, width, height, Multiple Render Targets)
-
-

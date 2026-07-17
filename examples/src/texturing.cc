@@ -22,9 +22,9 @@ struct MyProgram : Program {
   };
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
-    auto &vin = static_cast<const app::ObjVertex&>(in);
-    auto &uin = *static_cast<const Uniform*>(u);
-    auto &aout = *static_cast<Attr*>(out.attr);
+    auto &vin = static_cast<const app::ObjVertex &>(in);
+    auto &uin = *static_cast<const Uniform *>(u);
+    auto &aout = *static_cast<Attr *>(out.attr);
 
     auto n = uin.mv * Vec4{vin.normal, 0.f};
     auto pv = uin.mv * Vec4{in.pos, 1.f};
@@ -40,16 +40,16 @@ struct MyProgram : Program {
     const static Vec4 diffuse_albedo{.7f, .7f, .7f, 1.f};
     const static Vec4 specular_albedo{.2f, .2f, .2f, 1.f};
     const static unsigned spec_power = 64;
-    auto &fin = *static_cast<const Attr*>(in.attr);
-    auto &uin = *static_cast<const Uniform*>(u);
+    auto &fin = *static_cast<const Attr *>(in.attr);
+    auto &uin = *static_cast<const Uniform *>(u);
 
     auto to_eye = normalize(-fin.pos_v);
     auto n = normalize(fin.normal);
     auto tex = uin.tex.sample(fin.tc.x, fin.tc.y);
     auto ambient = tex * ambient_albedo;
-    auto diffuse =  tex * diffuse_albedo * std::max(dot(n, to_light), 0.f);
-    auto specular = specular_albedo * std::pow(std::max(dot(
-            reflect(-to_light, n), to_eye), 0.f), spec_power);
+    auto diffuse = tex * diffuse_albedo * std::max(dot(n, to_light), 0.f);
+    auto specular =
+        specular_albedo * std::pow(std::max(dot(reflect(-to_light, n), to_eye), 0.f), spec_power);
 
     out = ambient + diffuse + specular;
   }
@@ -67,12 +67,9 @@ auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {
     for (auto c = 0u; c < width; ++c) {
       if (c % step == 0)
         white = !white;
-      out[r * width + c] = {
-        static_cast<unsigned char>(white * 255),
-        static_cast<unsigned char>(white * 255),
-        static_cast<unsigned char>(white * 255),
-        255
-      };
+      out[r * width + c] = {static_cast<unsigned char>(white * 255),
+                            static_cast<unsigned char>(white * 255),
+                            static_cast<unsigned char>(white * 255), 255};
     }
   }
 
@@ -82,24 +79,21 @@ auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {
 } // namespace
 
 class TexturingApp : public app::App {
- public:
+public:
   TexturingApp(unsigned w, unsigned h, const std::string &name)
-    : App{w, h, name},
-      vertices_{app::parseObj(ASSETS_DIR "/cube.obj")},
-      vb_{&vertices_[0], vertices_.size(), sizeof(vertices_[0])},
-      uniform_{{}, {}, {512, 512, genCheckerTexture(512, 512, 64)}} {}
+      : App{w, h, name}, vertices_{app::parseObj(ASSETS_DIR "/cube.obj")},
+        vb_{&vertices_[0], vertices_.size(), sizeof(vertices_[0])},
+        uniform_{{}, {}, {512, 512, genCheckerTexture(512, 512, 64)}} {}
 
- private:
+private:
   void startup() override {
     ctx_.setVertexBuffer(&vb_);
     ctx_.setProgram(&prog_);
     ctx_.setUniform(&uniform_);
     ctx_.setCulling(Pipeline::BACK_FACING);
 
-    view_ = createViewMatrix({0.f, 0.f, 3.7f}, {0.f, 0.f, 0.f},
-                             {0.f, 1.f, 0.f});
-    auto proj = createPerspProjMatrix(70.0_deg,
-        static_cast<float>(width_) / height_, 1.f, 100.f);
+    view_ = createViewMatrix({0.f, 0.f, 3.7f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
+    auto proj = createPerspProjMatrix(70.0_deg, static_cast<float>(width_) / height_, 1.f, 100.f);
     proj_view_ = proj * view_;
   }
 
@@ -121,5 +115,3 @@ class TexturingApp : public app::App {
 };
 
 DEFINE_AND_CALL_APP(TexturingApp, 1200, 900, Texturing)
-
-

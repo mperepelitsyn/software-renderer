@@ -16,8 +16,7 @@ void FPSCounter::tick(double delta) {
     std::ostringstream oss{name_, std::ios_base::ate};
     auto fps = 1.0 / elapsed_ * frames_;
 
-    oss << " [" << std::round(fps) << " fps, "
-        << std::round(1000.0 / fps) << " ms]";
+    oss << " [" << std::round(fps) << " fps, " << std::round(1000.0 / fps) << " ms]";
     glfwSetWindowTitle(window_, oss.str().c_str());
 
     frames_ = 0;

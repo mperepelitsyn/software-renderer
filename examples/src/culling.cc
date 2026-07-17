@@ -11,7 +11,7 @@ struct MyProgram : Program {
   };
 
   static void vertexShader(const Vertex &in, const void *u, VertexH &out) {
-    auto uin = static_cast<const Uniform*>(u);
+    auto uin = static_cast<const Uniform *>(u);
     out.pos = uin->mvp * Vec4{in.pos, 1.f};
   }
 
@@ -22,24 +22,21 @@ struct MyProgram : Program {
   MyProgram() : Program{vertexShader, fragmentShader, 0} {}
 };
 
-
 } // namespace
 
 class CullingApp : public app::App {
- public:
+public:
   using App::App;
 
- private:
+private:
   void startup() override {
     ctx_.setVertexBuffer(&vb_);
     ctx_.setProgram(&prog_);
     ctx_.setUniform(&uniform_);
     ctx_.setWireframeMode(true);
 
-    auto view = createViewMatrix({0.f, 0.f, 5.5f}, {0.f, 0.f, 0.f},
-                                 {0.f, 1.f, 0.f});
-    auto proj = createPerspProjMatrix(70.0_deg,
-        static_cast<float>(width_) / height_, 0.01f, 100.f);
+    auto view = createViewMatrix({0.f, 0.f, 5.5f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
+    auto proj = createPerspProjMatrix(70.0_deg, static_cast<float>(width_) / height_, 0.01f, 100.f);
     proj_view_ = proj * view;
   }
 
@@ -60,8 +57,7 @@ class CullingApp : public app::App {
   }
 
   std::vector<app::ObjVertex> vertices_{app::parseObj(ASSETS_DIR "/monkey.obj")};
-  VertexBuffer vb_{&vertices_[0], static_cast<unsigned>(vertices_.size()),
-                   sizeof(vertices_[0])};
+  VertexBuffer vb_{&vertices_[0], static_cast<unsigned>(vertices_.size()), sizeof(vertices_[0])};
   Mat4 model_[2]{translate({-3.f, 0.f, 0.f}), translate({3.f, 0.f, 0.f})};
   Mat4 proj_view_;
   MyProgram::Uniform uniform_;
