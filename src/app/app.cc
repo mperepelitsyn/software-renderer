@@ -19,22 +19,27 @@ void keyCallback(GLFWwindow* window, int key, int /*sc*/, int action,
 }
 
 const GLchar *vs_source = R"(
-#version 450 core
+#version 410 core
 
-const vec2 pos[4] = {{-1.0, -1.0}, {1.0, -1.0}, {-1.0, 1.0}, {1.0, 1.0}};
+const vec2 pos[4] = vec2[](vec2(-1.0, -1.0), vec2(1.0, -1.0),
+                           vec2(-1.0, 1.0), vec2(1.0, 1.0));
+out vec2 uv;
+
 void main(void) {
+  uv = pos[gl_VertexID] * 0.5 + 0.5;
   gl_Position = vec4(pos[gl_VertexID], 0.5, 1.0);
 }
 )";
 
 const GLchar *fs_source = R"(
-#version 450 core
+#version 410 core
 
-layout (binding = 0) uniform sampler2D sampler;
+uniform sampler2D tex;
+in vec2 uv;
 out vec4 color;
 
 void main(void) {
-  color = texelFetch(sampler, ivec2(gl_FragCoord.xy), 0);
+  color = texture(tex, uv);
 }
 )";
 
@@ -68,7 +73,10 @@ App::App(unsigned w, unsigned h, const std::string &name)
   if (!glfwInit())
     throw Error{"failed to initialize glfw"};
 
-  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   window_ = glfwCreateWindow(w, h, name_.c_str(), nullptr, nullptr);
   if (!window_) {
     glfwTerminate();
@@ -78,11 +86,19 @@ App::App(unsigned w, unsigned h, const std::string &name)
   glfwMakeContextCurrent(window_);
   glfwSetKeyCallback(window_, keyCallback);
 
-  glewInit();
+  if (!gladLoadGL(glfwGetProcAddress))
+    throw Error{"failed to load OpenGL"};
 
-  glCreateTextures(GL_TEXTURE_2D, 1, &texture_);
-  glTextureStorage2D(texture_, 1, GL_RGBA8, width_, height_);
-  glBindTextureUnit(0, texture_);
+  glGenVertexArrays(1, &vao_);
+  glBindVertexArray(vao_);
+
+  glGenTextures(1, &texture_);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texture_);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width_, height_, 0, GL_RGBA,
+               GL_UNSIGNED_BYTE, nullptr);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   program_ = linkProgram(vs_source, fs_source);
   glUseProgram(program_);
 
@@ -91,6 +107,7 @@ App::App(unsigned w, unsigned h, const std::string &name)
 }
 
 App::~App() {
+  glDeleteVertexArrays(1, &vao_);
   glDeleteTextures(1, &texture_);
   glDeleteProgram(program_);
   glfwDestroyWindow(window_);
@@ -108,8 +125,8 @@ void App::render() {
     renderLoop(time, delta);
 
     glClear(GL_COLOR_BUFFER_BIT);
-    glTextureSubImage2D(texture_, 0, 0, 0, width_, height_, GL_RGBA,
-                        GL_UNSIGNED_BYTE, fb_.getColorTexture().getRawBuffer());
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_, height_, GL_RGBA,
+                    GL_UNSIGNED_BYTE, fb_.getColorTexture().getRawBuffer());
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glfwSwapBuffers(window_);
     glfwPollEvents();

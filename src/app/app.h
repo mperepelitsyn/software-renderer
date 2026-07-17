@@ -1,6 +1,7 @@
 #pragma once
 
-#include <GL/glew.h>
+#include <glad/gl.h>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <iostream>
 
@@ -43,6 +44,7 @@ class App {
   double last_time_{};
   GLuint program_;
   GLuint texture_;
+  GLuint vao_;
   std::string name_;
   FPSCounter fps_counter_;
 };

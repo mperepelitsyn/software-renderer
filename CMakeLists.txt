@@ -1,45 +1,10 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.16)
 
-option(IS_SUPERBUILD "Superbuild" ON)
+project("Software Renderer" C CXX)  # C is for the generated glad loader.
 
-if (IS_SUPERBUILD)
-  project(SUPERBUILD NONE)
-  include(ExternalProject)
-  set_directory_properties(PROPERTIES EP_PREFIX ${CMAKE_BINARY_DIR})
-
-  ExternalProject_Add(
-    glfw3
-    URL https://github.com/glfw/glfw/archive/f7228bb56294714e8cdb8b39be3b7c6967240c54.zip
-    CMAKE_ARGS -DGLFW_BUILD_EXAMPLES=off
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-      -DGLFW_BUILD_DOCS=off
-      -DGLFW_BUILD_TESTS=off
-  )
-
-  ExternalProject_Add(
-    glew
-    URL https://sourceforge.net/projects/glew/files/glew/1.13.0/glew-1.13.0.tgz
-    CONFIGURE_COMMAND ${CMAKE_COMMAND}
-      -DBUILD_UTILS=off
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-      <SOURCE_DIR>/build/cmake
-  )
-
-  ExternalProject_Add(
-    software-renderer
-    DEPENDS glew glfw3
-    SOURCE_DIR ${PROJECT_SOURCE_DIR}
-    CMAKE_ARGS
-      -DIS_SUPERBUILD=off
-      -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}
-      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    INSTALL_COMMAND ""
-  )
-
-  return()
+if (POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
 endif()
-
-project("Software Renderer" CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -49,26 +14,58 @@ endforeach()
 
 # Setup compiler flags.
 set(CMAKE_CXX_STANDARD 14)
-if (CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -mavx")
-elseif(MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX")
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 endif()
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i.86")
+  if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+  elseif(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX")
+  endif()
+endif()
+
+include(FetchContent)
+set(GLFW_BUILD_EXAMPLES OFF)
+set(GLFW_BUILD_DOCS OFF)
+set(GLFW_BUILD_TESTS OFF)
+FetchContent_Declare(
+  glfw
+  URL https://github.com/glfw/glfw/archive/refs/tags/3.4.zip
+  URL_HASH SHA256=a133ddc3d3c66143eba9035621db8e0bcf34dba1ee9514a9e23e96afd39fd57a
+)
+FetchContent_Declare(
+  glad
+  URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.8.zip
+  URL_HASH SHA256=471886d363ea2b7e2f92081266c4775de91ee971a10359bd33559f1c5a1cbb92
+  SOURCE_SUBDIR cmake
+)
+FetchContent_MakeAvailable(glfw glad)
+glad_add_library(glad REPRODUCIBLE API gl:core=4.1)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glew CONFIG REQUIRED)
+set(RENDERER_SOURCES
+  src/renderer/matrix.cc
+  src/renderer/pipeline.cc
+)
+set(APP_SOURCES
+  src/app/app.cc
+  src/app/fps_counter.cc
+  src/app/obj_parser.cc
+  src/app/tga_loader.cc
+)
+set(EXAMPLES_SOURCES
+  examples/src/clipping.cc
+  examples/src/culling.cc
+  examples/src/mrt.cc
+  examples/src/texturing.cc
+  examples/src/zbuffer.cc
+)
 
-file(GLOB RENDERER_SOURCES "src/renderer/*.cc")
-file(GLOB RENDERER_HEADERS "src/renderer/*.h")
-file(GLOB APP_SOURCES "src/app/*.cc")
-file(GLOB APP_HEADERS "src/app/*.h")
-file(GLOB EXAMPLES_SOURCES "examples/src/*.cc")
-
-add_library(renderer STATIC ${RENDERER_SOURCES} ${RENDERER_HEADERS})
-add_library(app STATIC ${APP_SOURCES} ${APP_HEADERS})
-target_link_libraries(app renderer glfw GLEW::glew_s)
+add_library(renderer STATIC ${RENDERER_SOURCES})
+add_library(app STATIC ${APP_SOURCES})
+target_link_libraries(app renderer glad glfw)
 
 foreach(EXAMPLES_SOURCE ${EXAMPLES_SOURCES})
   get_filename_component(EXAMPLE_NAME ${EXAMPLES_SOURCE} NAME_WE)

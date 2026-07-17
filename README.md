@@ -2,19 +2,19 @@
 A toy software implementation of a graphics pipeline with programmable vertex and fragment shaders.
 
 ## Prerequisites
- - CPU with AVX
- - OpenGL 4.5
- - CMake
+ - OpenGL 4.1
+ - CMake 3.16+
  - C++14 compiler
+ - Python with jinja2 (used by the glad OpenGL loader generator at build time)
+
+AVX is used when available (x86 builds); other CPUs get a scalar fallback.
 
 ## Compiling
     git clone https://github.com/mperepelitsyn/software-renderer
     cd software-renderer
-    mkdir build
-    cd build
-    cmake -DCMAKE_BUILD_TYPE=release ..
-    make -j
-    ls ../examples/bin
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j
+    ls examples/bin
 
 ## TODO
  - add proper culling due to the now limited range of the guard band
