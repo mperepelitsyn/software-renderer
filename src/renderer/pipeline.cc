@@ -3,7 +3,9 @@
 #include <cstdint>
 #include <cstdlib>
 
+#ifdef __AVX__
 #include <immintrin.h>
+#endif
 
 #include "renderer/pipeline.h"
 
@@ -41,6 +43,7 @@ void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
                  reinterpret_cast<float*>(tri.v[1]->attr),
                  reinterpret_cast<float*>(tri.v[2]->attr)};
 
+#ifdef __AVX__
   auto w0 = _mm256_broadcast_ss(&tri.v[0]->pos.w);
   auto w1 = _mm256_broadcast_ss(&tri.v[1]->pos.w);
   auto w2 = _mm256_broadcast_ss(&tri.v[2]->pos.w);
@@ -59,6 +62,18 @@ void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
     in[1] += 8;
     in[2] += 8;
   }
+#else
+  auto w0 = tri.v[0]->pos.w;
+  auto w1 = tri.v[1]->pos.w;
+  auto w2 = tri.v[2]->pos.w;
+
+  for (auto i = 0u; i < attr_count; ++i) {
+    auto attr0 = in[0][i] * w0;
+    in[1][i] = in[1][i] * w1 - attr0;
+    in[2][i] = in[2][i] * w2 - attr0;
+    in[0][i] = attr0;
+  }
+#endif
 }
 
 } // namespace
@@ -340,6 +355,7 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
     auto z_v_rec = 1.f /
          (w0 * tri.v[0]->pos.w + w1 * tri.v[1]->pos.w + w2 * tri.v[2]->pos.w);
 
+#ifdef __AVX__
     auto vw1 = _mm256_broadcast_ss(&w1);
     auto vw2 = _mm256_broadcast_ss(&w2);
     auto vz_rec = _mm256_broadcast_ss(&z_v_rec);
@@ -353,6 +369,10 @@ void Pipeline::fill(const Triangle &tri, float x, float y,
               _mm256_add_ps(_mm256_mul_ps(in1, vw1), _mm256_mul_ps(in2, vw2))),
               vz_rec));
     }
+#else
+    for (auto i = 0u; i < prog_->attr_count; ++i)
+      storage[i] = (in[0][i] + in[1][i] * w1 + in[2][i] * w2) * z_v_rec;
+#endif
   }
 
   invokeFragmentShader(frag);
