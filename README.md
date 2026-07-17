@@ -2,10 +2,10 @@
 A toy software implementation of a graphics pipeline with programmable vertex and fragment shaders.
 
 ## Prerequisites
- - OpenGL 4.1
  - CMake 3.16+
- - C++14 compiler
- - Python with jinja2 (used by the glad OpenGL loader generator at build time)
+ - C++23 compiler
+
+SDL3 (used only to display the framebuffer) is fetched and built automatically.
 
 AVX is used when available (x86 builds); other CPUs get a scalar fallback.
 

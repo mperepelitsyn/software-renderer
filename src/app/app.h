@@ -1,8 +1,6 @@
 #pragma once
 
-#include <glad/gl.h>
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL.h>
 #include <iostream>
 
 #include "app/error.h"
@@ -32,18 +30,16 @@ protected:
   virtual void renderLoop(double time, double delta) = 0;
   virtual void startup() {}
   virtual void shutdown() {}
-  void setTitle(const std::string &title);
 
   renderer::Pipeline ctx_;
   renderer::FrameBuffer fb_;
   unsigned width_, height_;
 
 private:
-  GLFWwindow *window_;
+  SDL_Window *window_{};
+  SDL_Renderer *renderer_{};
+  SDL_Texture *texture_{};
   double last_time_{};
-  GLuint program_;
-  GLuint texture_;
-  GLuint vao_;
   std::string name_;
   FPSCounter fps_counter_;
 };

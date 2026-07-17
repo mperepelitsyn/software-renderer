@@ -20,14 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - run: pip install jinja2
       - run: sudo apt-get update && sudo apt-get install -y clang-tidy libwayland-dev libxkbcommon-dev xorg-dev
       - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-      # Generate glad headers that the app sources include.
-      - run: cmake --build build --target glad -j 4
       - run: run-clang-tidy -p build -quiet -warnings-as-errors='*' $(git ls-files 'src/*.cc' 'examples/*.cc')
 
   build:
@@ -38,13 +32,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      # setup-python exports Python_ROOT_DIR so glad's find_package(Python) uses
-      # the same interpreter pip installs into (macOS otherwise picks another one).
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - run: pip install jinja2
-      - name: Install GLFW deps (Linux)
+      - name: Install SDL deps (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev xorg-dev
       - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
