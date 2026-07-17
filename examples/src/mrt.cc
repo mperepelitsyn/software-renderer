@@ -53,7 +53,7 @@ struct DeferredStage1 : Program {
     uin.rt_pos_v->setTexel(x, y, ain.pos_v);
   }
 
-  DeferredStage1() : Program{vertexShader, fragmentShader, 8} {}
+  DeferredStage1() : Program{.vs = vertexShader, .fs = fragmentShader, .attr_count = 8} {}
 };
 
 struct DeferredStage2 : Program {
@@ -64,7 +64,7 @@ struct DeferredStage2 : Program {
   };
 
   static void vertexShader(const Vertex &in, const void *, VertexH &out) {
-    out = {{in.pos, 1.f}, {}};
+    out = {.pos = {in.pos, 1.f}, .attr = {}};
   }
 
   static void fragmentShader(const Fragment &in, const void *u, Vec4 &out) {
@@ -92,7 +92,7 @@ struct DeferredStage2 : Program {
     out = ambient + diffuse + specular;
   }
 
-  DeferredStage2() : Program{vertexShader, fragmentShader, 0} {}
+  DeferredStage2() : Program{.vs = vertexShader, .fs = fragmentShader, .attr_count = 0} {}
 };
 
 } // namespace
@@ -103,16 +103,20 @@ public:
       : App{w, h, name}, model_{parseObj(ASSETS_DIR "/stormtrooper.obj")},
         quad_{{{-1.f, -1.f, -1.f}}, {{1.f, -1.f, -1.f}}, {{-1.f, 1.f, -1.f}},
               {{-1.f, 1.f, -1.f}},  {{1.f, -1.f, -1.f}}, {{1.f, 1.f, -1.f}}},
-        vb_model_{&model_[0], model_.size(), sizeof(model_[0])},
-        vb_quad_{&quad_[0], quad_.size(), sizeof(quad_[0])}, rt_color{w, h}, rt_normal{w, h},
-        rt_pos_v{w, h},
-        uniform1_{{},        {},         {1024, 1024, loadTGA(ASSETS_DIR "/stormtrooper_d.tga")},
-                  &rt_color, &rt_normal, &rt_pos_v},
-        uniform2_{&rt_color, &rt_normal, &rt_pos_v} {}
+        vb_model_{.ptr = &model_[0], .count = model_.size(), .stride = sizeof(model_[0])},
+        vb_quad_{.ptr = &quad_[0], .count = quad_.size(), .stride = sizeof(quad_[0])},
+        rt_color{w, h}, rt_normal{w, h}, rt_pos_v{w, h},
+        uniform1_{.mv = {},
+                  .mvp = {},
+                  .tex_diff = {1024, 1024, loadTGA(ASSETS_DIR "/stormtrooper_d.tga")},
+                  .rt_color = &rt_color,
+                  .rt_normal = &rt_normal,
+                  .rt_pos_v = &rt_pos_v},
+        uniform2_{.rt_color = &rt_color, .rt_normal = &rt_normal, .rt_pos_v = &rt_pos_v} {}
 
 private:
   void startup() override {
-    ctx_.setCulling(Pipeline::BACK_FACING);
+    ctx_.setCulling(Pipeline::Culling::BackFacing);
 
     rt_color.clear();
     rt_normal.clear();

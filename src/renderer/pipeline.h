@@ -45,7 +45,7 @@ struct Triangle {
 
 class Pipeline {
 public:
-  enum Culling { NONE, FRONT_FACING, BACK_FACING };
+  enum class Culling { None, FrontFacing, BackFacing };
 
   void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
   void setFrameBuffer(FrameBuffer *fb) { fb_ = fb; }
@@ -73,7 +73,7 @@ private:
   FrameBuffer *fb_{nullptr};
   const Program *prog_;
   const void *uniform_{nullptr};
-  Culling culling_{NONE};
+  Culling culling_{Culling::None};
   bool wireframe_{false};
 };
 

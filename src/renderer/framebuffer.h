@@ -6,8 +6,7 @@ namespace renderer {
 
 class FrameBuffer {
 public:
-  FrameBuffer(unsigned width, unsigned height)
-      : color_{width, height}, depth_{width, height}, color_write_{true} {}
+  FrameBuffer(unsigned width, unsigned height) : color_{width, height}, depth_{width, height} {}
 
   void clear() {
     color_.clear();
@@ -21,16 +20,16 @@ public:
   }
 
   void setColorWrite(bool write) { color_write_ = write; }
-  auto &getColorTexture() const { return color_; }
-  auto &getDepthTexture() const { return depth_; }
+  [[nodiscard]] auto &getColorTexture() const { return color_; }
+  [[nodiscard]] auto &getDepthTexture() const { return depth_; }
   auto getDepth(unsigned x, unsigned y) { return depth_.fetchTexel(x, y); }
-  auto getWidth() const { return color_.getWidth(); }
-  auto getHeight() const { return color_.getHeight(); }
+  [[nodiscard]] auto getWidth() const { return color_.getWidth(); }
+  [[nodiscard]] auto getHeight() const { return color_.getHeight(); }
 
 private:
   Texture<UNorm> color_;
   Texture<float> depth_;
-  bool color_write_;
+  bool color_write_{true};
 };
 
 } // namespace renderer

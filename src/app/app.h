@@ -14,7 +14,7 @@
     try {                                                                                          \
       app_type _app(w, h, #title);                                                                 \
       _app.render();                                                                               \
-    } catch (const app::Error &e) {                                                                \
+    } catch (const std::exception &e) {                                                            \
       std::cerr << e.what() << '\n';                                                               \
       return EXIT_FAILURE;                                                                         \
     }                                                                                              \
@@ -24,7 +24,7 @@ namespace app {
 
 class App {
 public:
-  App(unsigned w, unsigned h, const std::string &name);
+  App(unsigned w, unsigned h, std::string name);
   void render();
   ~App();
 

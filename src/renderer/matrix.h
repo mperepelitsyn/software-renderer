@@ -1,5 +1,7 @@
 #pragma once
 
+#include <numbers>
+
 #include "renderer/vector.h"
 
 namespace renderer {
@@ -7,7 +9,7 @@ namespace renderer {
 // Basis vectors form columns.
 
 struct Mat4 {
-  Mat4() {}
+  Mat4() = default;
   Mat4(float d)
       : data{{d, 0.f, 0.f, 0.f}, {0.f, d, 0.f, 0.f}, {0.f, 0.f, d, 0.f}, {0.f, 0.f, 0.f, d}} {}
 
@@ -45,7 +47,7 @@ Mat4 createPerspProjMatrix(float fovy, float aspect, float znear, float zfar);
 Mat4 createViewMatrix(const Vec3 &pos, const Vec3 &target, const Vec3 &up);
 
 constexpr inline long double operator""_deg(long double deg) {
-  return 3.14159265358979f / 180.f * deg;
+  return std::numbers::pi_v<float> / 180.f * deg;
 }
 
 } // namespace renderer

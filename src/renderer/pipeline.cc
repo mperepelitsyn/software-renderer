@@ -29,7 +29,7 @@ Edge setup_edge(int x1, int y1, int x2, int y2, int x_start, int y_start, int pr
   int e = (static_cast<long long>(dx) * (y_start - y2) -
            static_cast<long long>(dy) * (x_start - x2) + bias) >>
           prec;
-  return {e, dy, dx};
+  return {.eq = e, .step_x = dy, .step_y = dx};
 }
 
 void precomputeAttrs(const Triangle &tri, unsigned attr_count) {
@@ -97,9 +97,7 @@ std::vector<Triangle> Pipeline::transform() {
 
     // Assemble a triangle.
     auto &tri = out[tri_idx];
-    for (auto v_idx = 0u; v_idx < 3; ++v_idx) {
-      auto &v = tri.v[v_idx];
-
+    for (auto &v : tri.v) {
       v = vert_arena_.allocate<VertexH>();
       v->attr = attr_arena_.allocate<void>();
       prog_->vs(*reinterpret_cast<const Vertex *>(buf), uniform_, *v);
@@ -143,7 +141,8 @@ void Pipeline::rasterize(std::vector<Triangle> &triangles) {
       // TODO: Deal with the duplication of the area calculation.
       auto area = (tri.v[1]->pos.x - tri.v[0]->pos.x) * (tri.v[2]->pos.y - tri.v[0]->pos.y) -
                   (tri.v[2]->pos.x - tri.v[0]->pos.x) * (tri.v[1]->pos.y - tri.v[0]->pos.y);
-      if ((culling_ == BACK_FACING && area <= 0.f) || (culling_ == FRONT_FACING && area >= 0.f))
+      if ((culling_ == Culling::BackFacing && area <= 0.f) ||
+          (culling_ == Culling::FrontFacing && area >= 0.f))
         continue;
       rasterizeLine(*tri.v[0], *tri.v[1]);
       rasterizeLine(*tri.v[0], *tri.v[2]);
@@ -235,15 +234,15 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   };
 
   switch (culling_) {
-  case NONE:
+  case Culling::None:
     if (area < 0)
       reverse_winding();
     break;
-  case BACK_FACING:
+  case Culling::BackFacing:
     if (area <= 0)
       return;
     break;
-  case FRONT_FACING:
+  case Culling::FrontFacing:
     if (area < 0) {
       reverse_winding();
       break;
@@ -258,9 +257,9 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   auto aabb_x = std::minmax({x0, x1, x2});
   auto aabb_y = std::minmax({y0, y1, y2});
   aabb_x = {std::max(0, aabb_x.first),
-            std::min((int)(fb_->getWidth() - 1) << prec_bits, aabb_x.second)};
+            std::min(static_cast<int>(fb_->getWidth() - 1) << prec_bits, aabb_x.second)};
   aabb_y = {std::max(0, aabb_y.first),
-            std::min((int)(fb_->getHeight() - 1) << prec_bits, aabb_y.second)};
+            std::min(static_cast<int>(fb_->getHeight() - 1) << prec_bits, aabb_y.second)};
 
   auto x_start = (aabb_x.first & mask) + offset;
   auto y_start = (aabb_y.first & mask) + offset;
@@ -311,8 +310,7 @@ void Pipeline::fill(const VertexH &v1, const VertexH &v2, float x, float y, floa
   Fragment frag;
   float storage[max_attr_size];
   frag.attr = &storage;
-  const float *in[] = {reinterpret_cast<const float *>(&v1.attr),
-                       reinterpret_cast<const float *>(&v2.attr)};
+  const float *in[] = {static_cast<const float *>(v1.attr), static_cast<const float *>(v2.attr)};
   frag.coord.x = x;
   frag.coord.y = y;
   frag.coord.z = z_s;

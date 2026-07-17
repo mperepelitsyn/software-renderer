@@ -1,19 +1,12 @@
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <type_traits>
 #include <vector>
 
 #include "renderer/vector.h"
-
-namespace {
-
-inline float clamp(float v, float min, float max) {
-  auto t = v < min ? min : v;
-  return t > max ? max : t;
-}
-
-} // namespace
 
 namespace renderer {
 
@@ -32,29 +25,31 @@ struct UNorm {
 };
 
 template <class T> class Texture {
-  using Type = std::conditional_t<std::is_same<T, UNorm>::value, Vec4, T>;
+  using Type = std::conditional_t<std::is_same_v<T, UNorm>, Vec4, T>;
 
 public:
   Texture(unsigned width, unsigned height, const std::vector<T> &buf)
       : buffer_{buf}, width_{width}, height_{height} {}
 
   Texture(unsigned width, unsigned height)
-      : buffer_(width * height), width_{width}, height_{height} {}
+      : buffer_(static_cast<size_t>(width) * height), width_{width}, height_{height} {}
 
-  Type sample(float u, float v) const { return fetchTexel(u * (width_ - 1), v * (height_ - 1)); }
+  [[nodiscard]] Type sample(float u, float v) const {
+    return fetchTexel(u * (width_ - 1), v * (height_ - 1));
+  }
 
-  Type fetchTexel(unsigned x, unsigned y) const { return buffer_[y * width_ + x]; }
+  [[nodiscard]] Type fetchTexel(unsigned x, unsigned y) const { return buffer_[y * width_ + x]; }
 
   void setTexel(unsigned x, unsigned y, const Type &texel) { buffer_[y * width_ + x] = texel; }
 
   void fill(const T &val) { std::fill(buffer_.begin(), buffer_.end(), val); }
 
-  void clear() { std::memset(&buffer_[0], 0x0, getSize()); }
+  void clear() { std::memset(buffer_.data(), 0x0, getSize()); }
 
-  size_t getSize() const { return width_ * height_ * sizeof(T); }
-  unsigned getWidth() const { return width_; }
-  unsigned getHeight() const { return height_; }
-  const void *getRawBuffer() const { return &buffer_[0]; }
+  [[nodiscard]] size_t getSize() const { return static_cast<size_t>(width_) * height_ * sizeof(T); }
+  [[nodiscard]] unsigned getWidth() const { return width_; }
+  [[nodiscard]] unsigned getHeight() const { return height_; }
+  [[nodiscard]] const void *getRawBuffer() const { return buffer_.data(); }
 
 private:
   std::vector<T> buffer_;
@@ -69,13 +64,14 @@ template <> inline Vec4 Texture<UNorm>::fetchTexel(unsigned x, unsigned y) const
 }
 
 template <> inline void Texture<UNorm>::setTexel(unsigned x, unsigned y, const Vec4 &color) {
-  buffer_[y * width_ + x] = {static_cast<unsigned char>(clamp(color.r, 0.f, 1.f) * 255.f),
-                             static_cast<unsigned char>(clamp(color.g, 0.f, 1.f) * 255.f),
-                             static_cast<unsigned char>(clamp(color.b, 0.f, 1.f) * 255.f), 255};
+  buffer_[y * width_ + x] = {static_cast<unsigned char>(std::clamp(color.r, 0.f, 1.f) * 255.f),
+                             static_cast<unsigned char>(std::clamp(color.g, 0.f, 1.f) * 255.f),
+                             static_cast<unsigned char>(std::clamp(color.b, 0.f, 1.f) * 255.f),
+                             255};
 }
 
 template <> inline void Texture<UNorm>::fill(const UNorm &val) {
-  std::memset(&buffer_[0], val.rgba, getSize());
+  std::memset(buffer_.data(), val.rgba, getSize());
 }
 
 } // namespace renderer

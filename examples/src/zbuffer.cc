@@ -47,7 +47,7 @@ struct MyProgram : Program {
     out = {ambient_albedo + diffuse + specular, 1.f};
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 6} {}
+  MyProgram() : Program{.vs = vertexShader, .fs = fragmentShader, .attr_count = 6} {}
 };
 
 } // namespace
@@ -77,7 +77,9 @@ private:
   }
 
   std::vector<app::ObjVertex> vertices_{app::parseObj(ASSETS_DIR "/teapot.obj")};
-  VertexBuffer vb_{&vertices_[0], static_cast<unsigned>(vertices_.size()), sizeof(vertices_[0])};
+  VertexBuffer vb_{.ptr = &vertices_[0],
+                   .count = static_cast<unsigned>(vertices_.size()),
+                   .stride = sizeof(vertices_[0])};
   MyProgram prog_;
   MyProgram::Uniform uniform_;
   Mat4 view_;

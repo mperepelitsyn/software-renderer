@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 
 #include "app/app.h"
 #include "app/obj_parser.h"
@@ -54,11 +55,11 @@ struct MyProgram : Program {
     out = ambient + diffuse + specular;
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 8} {}
+  MyProgram() : Program{.vs = vertexShader, .fs = fragmentShader, .attr_count = 8} {}
 };
 
 auto genCheckerTexture(unsigned width, unsigned height, unsigned step) {
-  std::vector<UNorm> out(width * height);
+  std::vector<UNorm> out(static_cast<size_t>(width) * height);
   bool white{true};
 
   for (auto r = 0u; r < height; ++r) {
@@ -82,15 +83,15 @@ class TexturingApp : public app::App {
 public:
   TexturingApp(unsigned w, unsigned h, const std::string &name)
       : App{w, h, name}, vertices_{app::parseObj(ASSETS_DIR "/cube.obj")},
-        vb_{&vertices_[0], vertices_.size(), sizeof(vertices_[0])},
-        uniform_{{}, {}, {512, 512, genCheckerTexture(512, 512, 64)}} {}
+        vb_{.ptr = &vertices_[0], .count = vertices_.size(), .stride = sizeof(vertices_[0])},
+        uniform_{.mv = {}, .mvp = {}, .tex = {512, 512, genCheckerTexture(512, 512, 64)}} {}
 
 private:
   void startup() override {
     ctx_.setVertexBuffer(&vb_);
     ctx_.setProgram(&prog_);
     ctx_.setUniform(&uniform_);
-    ctx_.setCulling(Pipeline::BACK_FACING);
+    ctx_.setCulling(Pipeline::Culling::BackFacing);
 
     view_ = createViewMatrix({0.f, 0.f, 3.7f}, {0.f, 0.f, 0.f}, {0.f, 1.f, 0.f});
     auto proj = createPerspProjMatrix(70.0_deg, static_cast<float>(width_) / height_, 1.f, 100.f);
