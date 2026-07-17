@@ -101,7 +101,7 @@ class MRTApp : public App {
  public:
   MRTApp(unsigned w, unsigned h, const std::string &name)
     : App{w, h, name},
-      model_{parseObj("../assets/stormtrooper.obj")},
+      model_{parseObj(ASSETS_DIR "/stormtrooper.obj")},
       quad_{
         {{-1.f, -1.f, -1.f}}, {{1.f, -1.f, -1.f}}, {{-1.f, 1.f, -1.f}},
         {{-1.f, 1.f, -1.f}}, {{1.f, -1.f, -1.f}}, {{1.f, 1.f, -1.f}}
@@ -112,7 +112,7 @@ class MRTApp : public App {
       rt_normal{w, h},
       rt_pos_v{w, h},
       uniform1_{{}, {},
-        {1024, 1024, loadTGA("../assets/stormtrooper_d.tga")},
+        {1024, 1024, loadTGA(ASSETS_DIR "/stormtrooper_d.tga")},
         &rt_color, &rt_normal, &rt_pos_v
       },
       uniform2_{&rt_color, &rt_normal, &rt_pos_v} {}

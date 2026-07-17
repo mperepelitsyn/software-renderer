@@ -79,7 +79,7 @@ class ZBufferApp : public app::App {
     ctx_.draw();
   }
 
-  std::vector<app::ObjVertex> vertices_{app::parseObj("../assets/teapot.obj")};
+  std::vector<app::ObjVertex> vertices_{app::parseObj(ASSETS_DIR "/teapot.obj")};
   VertexBuffer vb_{&vertices_[0], static_cast<unsigned>(vertices_.size()),
                    sizeof(vertices_[0])};
   MyProgram prog_;

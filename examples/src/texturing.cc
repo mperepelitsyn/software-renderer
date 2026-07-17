@@ -85,7 +85,7 @@ class TexturingApp : public app::App {
  public:
   TexturingApp(unsigned w, unsigned h, const std::string &name)
     : App{w, h, name},
-      vertices_{app::parseObj("../assets/cube.obj")},
+      vertices_{app::parseObj(ASSETS_DIR "/cube.obj")},
       vb_{&vertices_[0], vertices_.size(), sizeof(vertices_[0])},
       uniform_{{}, {}, {512, 512, genCheckerTexture(512, 512, 64)}} {}
 
