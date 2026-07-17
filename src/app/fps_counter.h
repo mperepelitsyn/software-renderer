@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL.h>
 
 namespace app {
 
@@ -10,12 +10,12 @@ class FPSCounter {
 public:
   FPSCounter(const std::string &name, double output_freq) : name_{name}, freq_{output_freq} {}
   void tick(double delta);
-  void setWindow(GLFWwindow *window) { window_ = window; }
+  void setWindow(SDL_Window *window) { window_ = window; }
 
 private:
   const std::string &name_;
   double freq_;
-  GLFWwindow *window_{};
+  SDL_Window *window_{};
   double elapsed_{};
   unsigned frames_{};
 };

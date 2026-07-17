@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project("Software Renderer" C CXX)  # C is for the generated glad loader.
+project("Software Renderer" C CXX)  # C is for SDL.
 
 if (POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
@@ -28,22 +28,13 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i.86")
 endif()
 
 include(FetchContent)
-set(GLFW_BUILD_EXAMPLES OFF)
-set(GLFW_BUILD_DOCS OFF)
-set(GLFW_BUILD_TESTS OFF)
+set(SDL_TEST_LIBRARY OFF)
 FetchContent_Declare(
-  glfw
-  URL https://github.com/glfw/glfw/archive/refs/tags/3.4.zip
-  URL_HASH SHA256=a133ddc3d3c66143eba9035621db8e0bcf34dba1ee9514a9e23e96afd39fd57a
+  sdl3
+  URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.4.12.zip
+  URL_HASH SHA256=ce4e4b92e628b376b59091fcaa7358044f4c7009b6d35be0d81abe8e1de7847a
 )
-FetchContent_Declare(
-  glad
-  URL https://github.com/Dav1dde/glad/archive/refs/tags/v2.0.8.zip
-  URL_HASH SHA256=471886d363ea2b7e2f92081266c4775de91ee971a10359bd33559f1c5a1cbb92
-  SOURCE_SUBDIR cmake
-)
-FetchContent_MakeAvailable(glfw glad)
-glad_add_library(glad REPRODUCIBLE API gl:core=4.1)
+FetchContent_MakeAvailable(sdl3)
 
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
@@ -67,7 +58,7 @@ set(EXAMPLES_SOURCES
 
 add_library(renderer STATIC ${RENDERER_SOURCES})
 add_library(app STATIC ${APP_SOURCES})
-target_link_libraries(app renderer glad glfw)
+target_link_libraries(app renderer SDL3::SDL3)
 
 foreach(EXAMPLES_SOURCE ${EXAMPLES_SOURCES})
   get_filename_component(EXAMPLE_NAME ${EXAMPLES_SOURCE} NAME_WE)

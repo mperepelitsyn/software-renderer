@@ -5,128 +5,54 @@
 
 namespace app {
 
-namespace {
-
-void errorCallback(int error, const char *desc) {
-  throw Error{std::format("GLFW error: ({}) {}", error, desc)};
-}
-
-void keyCallback(GLFWwindow *window, int key, int /*sc*/, int action, int /*mods*/) {
-  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    glfwSetWindowShouldClose(window, GL_TRUE);
-}
-
-const GLchar *vs_source = R"(
-#version 410 core
-
-const vec2 pos[4] = vec2[](vec2(-1.0, -1.0), vec2(1.0, -1.0),
-                           vec2(-1.0, 1.0), vec2(1.0, 1.0));
-out vec2 uv;
-
-void main(void) {
-  uv = pos[gl_VertexID] * 0.5 + 0.5;
-  gl_Position = vec4(pos[gl_VertexID], 0.5, 1.0);
-}
-)";
-
-const GLchar *fs_source = R"(
-#version 410 core
-
-uniform sampler2D tex;
-in vec2 uv;
-out vec4 color;
-
-void main(void) {
-  color = texture(tex, uv);
-}
-)";
-
-GLuint compileShader(GLuint type, const GLchar *source) {
-  auto shader = glCreateShader(type);
-  glShaderSource(shader, 1, &source, nullptr);
-  glCompileShader(shader);
-
-  return shader;
-}
-
-GLuint linkProgram(const GLchar *vs_source, const GLchar *fs_source) {
-  auto program = glCreateProgram();
-  auto vs = compileShader(GL_VERTEX_SHADER, vs_source);
-  auto fs = compileShader(GL_FRAGMENT_SHADER, fs_source);
-  glAttachShader(program, vs);
-  glAttachShader(program, fs);
-  glLinkProgram(program);
-  glDeleteShader(vs);
-  glDeleteShader(fs);
-
-  return program;
-}
-
-} // namespace
-
 App::App(unsigned w, unsigned h, std::string name)
     : fb_{w, h}, width_{w}, height_{h}, name_{std::move(name)}, fps_counter_{name_, 0.25} {
-  glfwSetErrorCallback(errorCallback);
+  if (!SDL_Init(SDL_INIT_VIDEO))
+    throw Error{std::format("failed to initialize SDL: {}", SDL_GetError())};
 
-  if (!glfwInit())
-    throw Error{"failed to initialize glfw"};
+  if (!SDL_CreateWindowAndRenderer(name_.c_str(), w, h, 0, &window_, &renderer_))
+    throw Error{std::format("failed to create SDL window: {}", SDL_GetError())};
 
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  window_ = glfwCreateWindow(w, h, name_.c_str(), nullptr, nullptr);
-  if (!window_) {
-    glfwTerminate();
-    throw Error{"failed to create glfw window"};
-  }
-
-  glfwMakeContextCurrent(window_);
-  glfwSetKeyCallback(window_, keyCallback);
-
-  if (!gladLoadGL(glfwGetProcAddress))
-    throw Error{"failed to load OpenGL"};
-
-  glGenVertexArrays(1, &vao_);
-  glBindVertexArray(vao_);
-
-  glGenTextures(1, &texture_);
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, texture_);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width_, height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  program_ = linkProgram(vs_source, fs_source);
-  glUseProgram(program_);
+  texture_ =
+      SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, w, h);
+  if (!texture_)
+    throw Error{std::format("failed to create SDL texture: {}", SDL_GetError())};
+  SDL_SetTextureScaleMode(texture_, SDL_SCALEMODE_NEAREST);
 
   ctx_.setFrameBuffer(&fb_);
   fps_counter_.setWindow(window_);
 }
 
 App::~App() {
-  glDeleteVertexArrays(1, &vao_);
-  glDeleteTextures(1, &texture_);
-  glDeleteProgram(program_);
-  glfwDestroyWindow(window_);
-  glfwTerminate();
+  SDL_DestroyTexture(texture_);
+  SDL_DestroyRenderer(renderer_);
+  SDL_DestroyWindow(window_);
+  SDL_Quit();
 }
 
 void App::render() {
   startup();
-  while (!glfwWindowShouldClose(window_)) {
-    auto time = glfwGetTime();
+  bool running = true;
+  while (running) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+      if (event.type == SDL_EVENT_QUIT ||
+          (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE))
+        running = false;
+    }
+
+    auto time = SDL_GetTicksNS() / 1e9;
     auto delta = time - last_time_;
     last_time_ = time;
 
     fps_counter_.tick(delta);
     renderLoop(time, delta);
 
-    glClear(GL_COLOR_BUFFER_BIT);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width_, height_, GL_RGBA, GL_UNSIGNED_BYTE,
-                    fb_.getColorTexture().getRawBuffer());
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glfwSwapBuffers(window_);
-    glfwPollEvents();
+    SDL_UpdateTexture(texture_, nullptr, fb_.getColorTexture().getRawBuffer(), width_ * 4);
+    // Framebuffer row 0 is the bottom scanline (GL convention); SDL draws row 0 at the top.
+    SDL_RenderTextureRotated(renderer_, texture_, nullptr, nullptr, 0.0, nullptr,
+                             SDL_FLIP_VERTICAL);
+    SDL_RenderPresent(renderer_);
   }
   shutdown();
 }
