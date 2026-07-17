@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: clang-format --dry-run --Werror $(git ls-files '*.cc' '*.h')
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      # setup-python exports Python_ROOT_DIR so glad's find_package(Python) uses
+      # the same interpreter pip installs into (macOS otherwise picks another one).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - run: pip install jinja2
+      - name: Install GLFW deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev xorg-dev
+      - run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --config Release -j 4
