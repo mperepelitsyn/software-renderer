@@ -17,8 +17,8 @@ class Arena {
       alloc_size_ = alloc_size;
     }
     size_ = size;
-    ptr_ = reinterpret_cast<void*>(
-        reinterpret_cast<uintptr_t>(storage_.get()) & ~(alignment - 1));
+    ptr_ = reinterpret_cast<void *>((reinterpret_cast<uintptr_t>(storage_.get()) + alignment - 1) &
+                                    ~(static_cast<uintptr_t>(alignment) - 1));
   }
 
   template<class T>
