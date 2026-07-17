@@ -349,7 +349,7 @@ void Pipeline::fill(const Triangle &tri, float x, float y, float w0, float w1, f
     auto vz_rec = _mm256_broadcast_ss(&z_v_rec);
 
     auto vecs = (prog_->attr_count + 7) / 8;
-    for (auto i = 0u; i < vecs; ++i) {
+    for (auto i = 0uz; i < vecs; ++i) {
       auto in0 = _mm256_load_ps(in[0] + i * 8);
       auto in1 = _mm256_load_ps(in[1] + i * 8);
       auto in2 = _mm256_load_ps(in[2] + i * 8);
