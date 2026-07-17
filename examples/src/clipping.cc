@@ -32,7 +32,7 @@ struct MyProgram : Program {
     out = {ain.color, 1.f};
   }
 
-  MyProgram() : Program{vertexShader, fragmentShader, 3} {}
+  MyProgram() : Program{.vs = vertexShader, .fs = fragmentShader, .attr_count = 3} {}
 };
 
 } // namespace
@@ -66,7 +66,9 @@ private:
       {{.0f, -.5f, .0f}, {0.f, 1.f, .0f}},
       {{.5f, .5f, .0f}, {0.f, .0f, 1.f}},
   };
-  VertexBuffer vb_{&vertices_[0], static_cast<unsigned>(vertices_.size()), sizeof(MyVertex)};
+  VertexBuffer vb_{.ptr = &vertices_[0],
+                   .count = static_cast<unsigned>(vertices_.size()),
+                   .stride = sizeof(MyVertex)};
   Mat4 proj_view_;
   MyProgram::Uniform uniform_;
   MyProgram prog_;

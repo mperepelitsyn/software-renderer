@@ -5,7 +5,7 @@
 namespace renderer {
 
 struct Vec2 {
-  Vec2() {}
+  Vec2() = default;
   Vec2(float a, float b) : x{a}, y{b} {}
 
   float &operator[](unsigned i) { return data[i]; }
@@ -33,7 +33,7 @@ struct Vec2 {
 };
 
 struct Vec3 {
-  Vec3() {}
+  Vec3() = default;
   Vec3(float a, float b, float c) : x{a}, y{b}, z{c} {}
 
   float &operator[](unsigned i) { return data[i]; }
@@ -63,7 +63,7 @@ struct Vec3 {
 };
 
 struct Vec4 {
-  Vec4() {}
+  Vec4() = default;
   Vec4(float a, float b, float c, float d) : x{a}, y{b}, z{c}, w{d} {}
   Vec4(const Vec3 &v, float w) : x{v.x}, y{v.y}, z{v.z}, w{w} {}
 

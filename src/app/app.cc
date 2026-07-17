@@ -1,4 +1,5 @@
-#include <sstream>
+#include <format>
+#include <utility>
 
 #include "app/app.h"
 
@@ -7,9 +8,7 @@ namespace app {
 namespace {
 
 void errorCallback(int error, const char *desc) {
-  std::ostringstream oss;
-  oss << "GLFW error: (" << error << ") " << desc;
-  throw Error{oss.str()};
+  throw Error{std::format("GLFW error: ({}) {}", error, desc)};
 }
 
 void keyCallback(GLFWwindow *window, int key, int /*sc*/, int action, int /*mods*/) {
@@ -65,8 +64,8 @@ GLuint linkProgram(const GLchar *vs_source, const GLchar *fs_source) {
 
 } // namespace
 
-App::App(unsigned w, unsigned h, const std::string &name)
-    : fb_{w, h}, width_{w}, height_{h}, name_{name}, fps_counter_{name_, 0.25} {
+App::App(unsigned w, unsigned h, std::string name)
+    : fb_{w, h}, width_{w}, height_{h}, name_{std::move(name)}, fps_counter_{name_, 0.25} {
   glfwSetErrorCallback(errorCallback);
 
   if (!glfwInit())
