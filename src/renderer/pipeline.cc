@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdint>
 #include <cstdlib>
 
@@ -82,8 +83,14 @@ void Pipeline::draw() {
   vert_arena_.reset(vb_->count, sizeof(VertexH), alignof(VertexH));
   attr_arena_.reset(vb_->count, (prog_->attr_count + 7) / 8 * 32, 32);
 
+  stats_.submitted += vb_->count / 3;
+  auto t0 = std::chrono::steady_clock::now();
   auto triangles = transform();
+  auto t1 = std::chrono::steady_clock::now();
   rasterize(triangles);
+  auto t2 = std::chrono::steady_clock::now();
+  stats_.vtx_ms += std::chrono::duration<double, std::milli>(t1 - t0).count();
+  stats_.raster_ms += std::chrono::duration<double, std::milli>(t2 - t1).count();
 }
 
 std::vector<Triangle> Pipeline::transform() {
@@ -144,6 +151,11 @@ void Pipeline::rasterize(std::vector<Triangle> &triangles) {
       if ((culling_ == Culling::BackFacing && area <= 0.f) ||
           (culling_ == Culling::FrontFacing && area >= 0.f))
         continue;
+      // Reject degenerate triangles like the half-space path does, so
+      // stats_.drawn means the same thing in both modes.
+      if (area == 0.f)
+        continue;
+      ++stats_.drawn;
       rasterizeLine(*tri.v[0], *tri.v[1]);
       rasterizeLine(*tri.v[0], *tri.v[2]);
       rasterizeLine(*tri.v[1], *tri.v[2]);
@@ -251,6 +263,7 @@ void Pipeline::rasterizeTriHalfSpace(Triangle &tri) {
   }
   if (area == 0)
     return;
+  ++stats_.drawn;
 
   auto area_rec = 1.f / area;
 
@@ -368,6 +381,7 @@ void Pipeline::fill(const Triangle &tri, float x, float y, float w0, float w1, f
 }
 
 void Pipeline::invokeFragmentShader(const Fragment &frag) {
+  ++stats_.fragments;
   Vec4 color;
   prog_->fs(frag, uniform_, color);
   fb_->setPixel(frag.coord.x, frag.coord.y, color, frag.coord.z);

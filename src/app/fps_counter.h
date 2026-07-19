@@ -1,22 +1,28 @@
 #pragma once
 
-#include <string>
-
-#include <SDL3/SDL.h>
-
 namespace app {
 
 class FPSCounter {
 public:
-  FPSCounter(const std::string &name, double output_freq) : name_{name}, freq_{output_freq} {}
-  void tick(double delta);
-  void setWindow(SDL_Window *window) { window_ = window; }
+  explicit FPSCounter(double update_freq) : freq_{update_freq} {}
+
+  void tick(double delta) {
+    ++frames_;
+    elapsed_ += delta;
+    if (elapsed_ >= freq_) {
+      fps_ = frames_ / elapsed_;
+      frames_ = 0;
+      elapsed_ = 0.0;
+    }
+  }
+
+  [[nodiscard]] double fps() const { return fps_; }
+  [[nodiscard]] double frameMs() const { return fps_ > 0.0 ? 1000.0 / fps_ : 0.0; }
 
 private:
-  const std::string &name_;
   double freq_;
-  SDL_Window *window_{};
   double elapsed_{};
+  double fps_{};
   unsigned frames_{};
 };
 
