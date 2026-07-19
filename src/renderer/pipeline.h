@@ -47,6 +47,15 @@ class Pipeline {
 public:
   enum class Culling { None, FrontFacing, BackFacing };
 
+  // Accumulated across draw() calls; reset via resetStats().
+  struct Stats {
+    size_t submitted{}; // Triangles submitted to draw().
+    size_t drawn{};     // Triangles surviving clipping and culling.
+    size_t fragments{}; // Fragment shader invocations.
+    double vtx_ms{};    // Time spent in transform (vertex shading, clip, cull).
+    double raster_ms{}; // Time spent rasterizing (incl. fragment shading).
+  };
+
   void setVertexBuffer(const VertexBuffer *vb) { vb_ = vb; }
   void setFrameBuffer(FrameBuffer *fb) { fb_ = fb; }
   auto getFrameBuffer() { return fb_; }
@@ -54,6 +63,8 @@ public:
   void setUniform(const void *u) { uniform_ = u; }
   void setProgram(const Program *program) { prog_ = program; }
   void setCulling(Culling mode) { culling_ = mode; }
+  [[nodiscard]] const Stats &getStats() const { return stats_; }
+  void resetStats() { stats_ = {}; }
   void draw();
 
   constexpr static unsigned max_attr_size{16}; // In floats.
@@ -75,6 +86,7 @@ private:
   const void *uniform_{nullptr};
   Culling culling_{Culling::None};
   bool wireframe_{false};
+  Stats stats_;
 };
 
 } // namespace renderer

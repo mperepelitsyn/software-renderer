@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 #include <iostream>
+#include <string>
 
 #include "app/error.h"
 #include "app/fps_counter.h"
@@ -22,7 +23,7 @@ namespace app {
 
 class App {
 public:
-  App(unsigned w, unsigned h, std::string name);
+  App(unsigned w, unsigned h, const std::string &name);
   void render();
   ~App();
 
@@ -40,7 +41,6 @@ private:
   SDL_Renderer *renderer_{};
   SDL_Texture *texture_{};
   double last_time_{};
-  std::string name_;
   FPSCounter fps_counter_;
 };
 
